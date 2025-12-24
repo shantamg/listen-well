@@ -1,0 +1,14 @@
+{
+  "name": "listen-well",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ListenWell MVP Planning",
+  "workspaces": [
+    "docs-site"
+  ],
+  "scripts": {
+    "docs:dev": "npm --workspace docs-site run start",
+    "docs:build": "npm --workspace docs-site run build",
+    "docs:deploy": "npm --workspace docs-site run vercel:deploy"
+  }
+}
