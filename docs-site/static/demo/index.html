@@ -161,21 +161,17 @@
         }
 
         .advance-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(to top, var(--bg-secondary) 80%, transparent);
-            padding: 24px 20px 20px;
+            background: var(--bg-secondary);
+            padding: var(--spacing-md) var(--spacing-xl);
             display: none;
             justify-content: center;
-            z-index: 10;
+            border-top: 1px solid var(--border);
         }
         .advance-bar.visible {
             display: flex;
         }
         .advance-bar .btn {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            width: 100%;
         }
     </style>
 </head>
@@ -211,6 +207,11 @@
             <!-- Dynamic content -->
         </div>
 
+        <!-- Advance Bar (appears between content and input when visible) -->
+        <div class="advance-bar" id="advanceBar">
+            <button class="btn btn-primary" id="advanceBtn">Continue</button>
+        </div>
+
         <!-- Emotion Bar -->
         <div class="emotion-bar" id="emotionBar">
             <div class="emotion-header">
@@ -235,11 +236,6 @@
                     <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
                 </svg>
             </button>
-        </div>
-
-        <!-- Advance Bar (fixed bottom) -->
-        <div class="advance-bar" id="advanceBar">
-            <button class="btn btn-primary" id="advanceBtn">Continue</button>
         </div>
     </div>
 
