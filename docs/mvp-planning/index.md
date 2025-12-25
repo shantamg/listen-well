@@ -16,8 +16,8 @@ This directory contains all documentation for BeHeard MVP planning - an AI-Facil
 
 Experience the key features in action:
 
-- <strong><a href="/demo/index.html" onClick="window.location.href='/demo/index.html'; return false;">Full Journey Demo</a></strong> - Walk through all 5 stages
-- <strong><a href="/demo/features/index.html" onClick="window.location.href='/demo/features/index.html'; return false;">Feature Demos</a></strong> - Explore individual mechanisms
+- <strong><a href="/demo/index.html" onClick="window.location.href='/demo/index.html'; return false;">Quick Preview</a></strong> - Walk through the happy path of all 5 stages
+- <strong><a href="/demo/features/index.html" onClick="window.location.href='/demo/features/index.html'; return false;">Feature Demos</a></strong> - Deep dive into individual mechanisms like guardrails, cooling periods, and consent flows
 
 ## Quick Links
 

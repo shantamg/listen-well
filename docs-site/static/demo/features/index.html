@@ -118,6 +118,39 @@
             margin: 32px 0 16px;
         }
 
+        .featured-card {
+            background: linear-gradient(135deg, rgba(16, 163, 127, 0.1) 0%, rgba(16, 163, 127, 0.05) 100%);
+            border-color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .featured-card .demo-card-icon {
+            font-size: 40px;
+        }
+
+        .featured-card .demo-card-title {
+            font-size: 22px;
+        }
+
+        .section-divider {
+            text-align: center;
+            margin: 40px 0 24px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-divider span {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-divider-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
         @media (max-width: 640px) {
             .demo-grid {
                 grid-template-columns: 1fr;
@@ -128,15 +161,27 @@
 <body>
     <div class="gallery-container">
         <header class="gallery-header">
-            <div class="gallery-logo">BeHeard Feature Demos</div>
-            <div class="gallery-subtitle">Explore individual features and mechanisms</div>
-            <a href="../index.html" class="journey-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12h18M3 12l6-6M3 12l6 6"/>
-                </svg>
-                Try the Full Journey Demo
-            </a>
+            <div class="gallery-logo">BeHeard Demos</div>
+            <div class="gallery-subtitle">Experience the AI-facilitated conflict resolution system</div>
         </header>
+
+        <!-- Quick Preview - Featured -->
+        <a href="../index.html" class="demo-card featured-card">
+            <div class="demo-card-icon">&#9889;</div>
+            <div class="demo-card-title">Quick Preview</div>
+            <div class="demo-card-description">Walk through the happy path of all 5 stages in a streamlined demo. Best for getting a quick sense of the full user journey from onboarding to resolution.</div>
+            <div class="demo-card-cta">
+                Start the journey
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+
+        <div class="section-divider">
+            <span>Feature Deep Dives</span>
+            <p class="section-divider-subtitle">Explore individual mechanisms in detail</p>
+        </div>
 
         <div class="section-title">Onboarding & Solo Modes</div>
         <div class="demo-grid">
