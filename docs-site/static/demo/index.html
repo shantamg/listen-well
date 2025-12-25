@@ -303,11 +303,25 @@
             const content = document.getElementById('contentArea');
 
             content.innerHTML = `
-                <div class="waiting-state">
-                    <div class="waiting-spinner"></div>
-                    <div class="waiting-text">Waiting for ${MockData.scenario.partnerName} to sign...</div>
+                <div class="partner-status">
+                    <div class="partner-avatar">J</div>
+                    <div class="partner-name">${MockData.scenario.partnerName}</div>
+                    <div class="partner-stage">Reviewing the Curiosity Compact...</div>
+                    <div class="partner-progress">
+                        <div class="partner-progress-bar" id="signProgressBar" style="width: 20%"></div>
+                    </div>
                 </div>
             `;
+
+            // Animate progress bar
+            setTimeout(() => {
+                const bar = document.getElementById('signProgressBar');
+                if (bar) bar.style.width = '60%';
+            }, 600);
+            setTimeout(() => {
+                const bar = document.getElementById('signProgressBar');
+                if (bar) bar.style.width = '100%';
+            }, 1400);
 
             setTimeout(() => {
                 showModal("Both Ready", `Both you and ${MockData.scenario.partnerName} have signed the Curiosity Compact. Let us begin.`, "Start Stage 1");
