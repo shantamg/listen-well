@@ -60,10 +60,9 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: '/demo/features/index.html',
+          type: 'html',
           position: 'left',
-          label: 'Demos',
-          target: '_self',
+          value: '<a href="/demo/features/index.html" class="navbar__item navbar__link" onclick="window.location.href=this.href; return false;">Demos</a>',
         },
       ],
     },
