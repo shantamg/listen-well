@@ -19,6 +19,9 @@ The Vessel privacy architecture and data handling approach.
 ### [Wireframes](./wireframes/index.md)
 UI concepts and screen layouts for key interfaces.
 
+### [Feature Demos Design](./2024-12-25-feature-demos-design.md)
+Design for interactive feature demos linked from documentation.
+
 ---
 
 ## Quick Navigation
