@@ -45,9 +45,10 @@ flowchart TB
         VEC[(pgvector)]
     end
 
-    subgraph "Async Layer"
-        QUEUE[Job Queue - graphile-worker]
-        NOTIFY[Notification Worker]
+    subgraph "Realtime Layer"
+        ABLY[Ably Pub/Sub]
+        PUSH[Push Notifications]
+        PRESENCE[Presence Check]
     end
 
     REST --> SESSION
@@ -55,9 +56,9 @@ flowchart TB
     AUTH --> REST
     AUTH --> WS
 
-    SESSION --> QUEUE
-    QUEUE --> NOTIFY
-    QUEUE --> SQL
+    SESSION --> PRESENCE
+    PRESENCE -->|online| ABLY
+    PRESENCE -->|offline| PUSH
 
     SESSION --> STAGE
     STAGE --> GATE
@@ -108,30 +109,55 @@ flowchart TB
 | Small Model | Mechanics (classification, detection, planning) |
 | Large Model | Empathetic response generation |
 
-### Async Layer (Airlock Queue)
+### Realtime Layer (Presence-Based Notifications)
 
 | Component | Responsibility |
 |-----------|----------------|
-| Job Queue (graphile-worker) | Handles async operations when users are offline, backed by PostgreSQL |
-| Notification Worker | Sends push notifications, emails for stage events |
+| Ably Pub/Sub | Real-time updates for online users |
+| Presence Check | Determine if partner is currently in-app |
+| Push Notifications | Immediate notification for offline users |
 
-**Why an Airlock is Required:**
+**Why Presence-Based Routing:**
 
-When User A completes Stage 1, User B might be offline. The Session Manager cannot just update state; it must enqueue a `notify_partner` job. This decouples:
-- State transition (fast, synchronous)
-- Notification logic (slow, external, may fail)
+When User A completes Stage 1, User B needs to know immediately. Instead of a job queue, we check if User B is online and route accordingly:
+
+- **Online**: Ably delivers instantly (sub-second)
+- **Offline**: Push notification fires immediately
 
 ```typescript
-// When User A completes a stage
-await prisma.stageProgress.update({ ... });
+async function notifyPartner(sessionId: string, partnerId: string, event: StageEvent) {
+  const channel = ably.channels.get(`user:${partnerId}`);
 
-// Enqueue notification via graphile-worker - don't wait for delivery
-await addJob('stage_complete', {
-  sessionId,
-  userId: partnerUserId,
-  stage: completedStage,
-  type: 'partner_ready',
-});
+  // Check if partner is subscribed (online in app)
+  const presence = await channel.presence.get();
+  const isOnline = presence.some(member => member.clientId === partnerId);
+
+  if (isOnline) {
+    // They're watching - Ably delivers instantly
+    await channel.publish('stage_update', event);
+  } else {
+    // They're offline - send push notification immediately
+    await sendPushNotification(partnerId, {
+      title: 'Partner update',
+      body: 'Your partner completed their reflection',
+      data: { sessionId, type: event.type }
+    });
+  }
+
+  // Log for audit
+  await prisma.notification.create({
+    data: { userId: partnerId, sessionId, type: event.type, deliveredVia: isOnline ? 'ably' : 'push' }
+  });
+}
+```
+
+**Edge Case Handling:**
+
+If User B disconnects between presence check and Ably publish (rare race condition), the client fetches missed notifications on app open:
+
+```typescript
+// Client: on app foreground
+const missed = await api.get('/notifications/unread');
 ```
 
 ## Row-Level Security (RLS)

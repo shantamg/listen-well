@@ -28,9 +28,10 @@ These rules are constitutional and must never be compromised:
 - **Runtime**: Node.js with Express
 - **ORM**: Prisma with RLS middleware
 - **Database**: PostgreSQL (Render) + pgvector + Row-Level Security
-- **Queue**: `graphile-worker` (Postgres-backed job queue for Airlock/Notifications)
+- **Realtime**: Ably (pub/sub + presence detection for immediate partner notifications)
+- **Push**: Expo Push Notifications (for offline users)
 - **AI Models**: AWS Bedrock (Haiku for small tasks, Sonnet for facilitation)
-- **Infrastructure**: Render.com (Web Service + Background Worker + Managed Postgres)
+- **Infrastructure**: Render.com (Web Service + Managed Postgres)
 
 ## Dual-Layer Data Strategy
 
