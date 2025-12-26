@@ -34,6 +34,7 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   name          String?
+  pushToken     String?  // Expo push token for realtime fallbacks
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -43,6 +44,10 @@ model User {
   stageProgress StageProgress[]
   messages      Message[]
   consents      ConsentRecord[]
+  empathyDrafts EmpathyDraft[]
+  empathyAttempts EmpathyAttempt[]
+  strategyProposals StrategyProposal[]
+  strategyRankings  StrategyRanking[]
 }
 ```
 
@@ -320,6 +325,8 @@ model Agreement {
   agreedAt       DateTime?
   followUpDate   DateTime?
   completedAt    DateTime?
+  proposal       StrategyProposal? @relation(fields: [proposalId], references: [id])
+  proposalId     String?
 
   @@index([sharedVesselId])
 }
@@ -348,16 +355,21 @@ model ConsentRecord {
   id           String        @id @default(cuid())
   user         User          @relation(fields: [userId], references: [id])
   userId       String
-  contentType  ConsentContentType
-  decision     ConsentDecision
-  decidedAt    DateTime      @default(now())
+  session      Session?      @relation(fields: [sessionId], references: [id])
+  sessionId    String?
+  targetType   ConsentContentType
+  targetId     String?       // e.g., empathy draft id, need id, boundary id
+  requestedBy  User          @relation("ConsentRequestedBy", fields: [requestedByUserId], references: [id])
+  requestedByUserId String
+  decision     ConsentDecision?
+  decidedAt    DateTime?
   revokedAt    DateTime?
   metadata     Json?         // Additional context
 
   // Link to resulting shared content
   consentedContent ConsentedContent[]
 
-  @@index([userId, decidedAt])
+  @@index([userId, sessionId, targetType, decidedAt])
 }
 
 enum ConsentContentType {
@@ -365,6 +377,9 @@ enum ConsentContentType {
   EVENT_SUMMARY
   EMOTIONAL_PATTERN
   BOUNDARY
+  EMPATHY_DRAFT
+  EMPATHY_ATTEMPT
+  STRATEGY_PROPOSAL
 }
 
 enum ConsentDecision {
@@ -372,6 +387,9 @@ enum ConsentDecision {
   DENIED
   REVOKED
 }
+
+// Pending/active consent queue item for GET /consent/pending
+// ConsentRecord doubles as the request + decision record; decision is null until acted on.
 ```
 
 ## Stage Progress
@@ -408,6 +426,28 @@ enum StageStatus {
   IN_PROGRESS
   GATE_PENDING   // Requirements met, awaiting partner
   COMPLETED
+}
+
+// Emotional regulation exercises (Emotional Barometer)
+model EmotionalExerciseCompletion {
+  id        String     @id @default(cuid())
+  session   Session    @relation(fields: [sessionId], references: [id])
+  sessionId String
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String
+  type      ExerciseType
+  completedAt DateTime @default(now())
+  intensityBefore Int?
+  intensityAfter  Int?
+
+  @@index([sessionId, userId, completedAt])
+}
+
+enum ExerciseType {
+  BREATHING_EXERCISE
+  BODY_SCAN
+  GROUNDING
+  PAUSE_SESSION
 }
 ```
 
@@ -466,6 +506,128 @@ model Message {
   @@index([sessionId, timestamp])
 }
 
+## Stage 2: Empathy Attempts
+
+### EmpathyDraft
+
+```prisma
+model EmpathyDraft {
+  id        String   @id @default(cuid())
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  content   String   @db.Text
+  readyToShare Boolean @default(false)
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  attempts  EmpathyAttempt[]
+
+  @@unique([sessionId, userId])
+}
+```
+
+### EmpathyAttempt
+
+```prisma
+model EmpathyAttempt {
+  id          String        @id @default(cuid())
+  draft       EmpathyDraft  @relation(fields: [draftId], references: [id])
+  draftId     String
+  session     Session       @relation(fields: [sessionId], references: [id])
+  sessionId   String
+  sourceUser  User          @relation(fields: [sourceUserId], references: [id])
+  sourceUserId String
+  content     String        @db.Text
+  sharedAt    DateTime      @default(now())
+  consentRecord ConsentRecord? @relation(fields: [consentRecordId], references: [id])
+  consentRecordId String?
+
+  validations EmpathyValidation[]
+
+  @@index([sessionId, sourceUserId])
+}
+```
+
+### EmpathyValidation
+
+```prisma
+model EmpathyValidation {
+  id           String         @id @default(cuid())
+  attempt      EmpathyAttempt @relation(fields: [attemptId], references: [id])
+  attemptId    String
+  session      Session        @relation(fields: [sessionId], references: [id])
+  sessionId    String
+  user         User           @relation(fields: [userId], references: [id])
+  userId       String         // Recipient validating partner attempt
+  validated    Boolean
+  feedback     String?        @db.Text
+  feedbackShared Boolean      @default(false)
+  validatedAt  DateTime?      @default(now())
+
+  @@unique([attemptId, userId])
+}
+```
+
+## Stage 4: Strategies and Rankings
+
+### StrategyProposal
+
+```prisma
+model StrategyProposal {
+  id          String   @id @default(cuid())
+  session     Session  @relation(fields: [sessionId], references: [id])
+  sessionId   String
+  createdBy   User?    @relation(fields: [createdByUserId], references: [id])
+  createdByUserId String?
+  description String   @db.Text
+  needsAddressed String[]
+  duration    String?
+  measureOfSuccess String?
+  source       StrategySource @default(USER_SUBMITTED) // For audit; not exposed to partner
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  consentRecord ConsentRecord? @relation(fields: [consentRecordId], references: [id])
+  consentRecordId String?
+
+  rankings   StrategyRanking[]
+}
+
+enum StrategySource {
+  USER_SUBMITTED
+  AI_SUGGESTED
+  CURATED
+}
+```
+
+### StrategyRanking
+
+```prisma
+model StrategyRanking {
+  id          String   @id @default(cuid())
+  session     Session  @relation(fields: [sessionId], references: [id])
+  sessionId   String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  rankedIds   String[] // Ordered StrategyProposal ids
+  submittedAt DateTime @default(now())
+
+  @@unique([sessionId, userId])
+}
+```
+
+### Agreement Link (Stage 4 Outcome)
+
+Use existing `Agreement` records to persist chosen micro-experiments. `Agreement.type = MICRO_EXPERIMENT` links to the winning `StrategyProposal` via a nullable `proposalId` field (add this to Agreement):
+
+```prisma
+  proposal    StrategyProposal? @relation(fields: [proposalId], references: [id])
+  proposalId  String?
+```
+
+```prisma
 enum MessageRole {
   USER
   AI
