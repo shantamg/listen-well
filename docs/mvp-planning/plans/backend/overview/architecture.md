@@ -248,6 +248,8 @@ USING (
 
 **Future hardening note**: If DB-level stage enforcement is needed later, add `app.current_stage` and `app.user_stage_status` locals. Currently stage enforcement is in the app layer via retrieval contracts.
 
+**Source of truth for stage enforcement (MVP)**: Retrieval contracts + StageProgress gates in the application layer are authoritative. Database locals (`app.current_stage`) are only used for defense-in-depth on SharedVessel reads in Stage 2+ and should mirror the app value, not override it.
+
 ## Dual-Layer Data Strategy
 
 ```mermaid

@@ -98,6 +98,8 @@ Support is offered based on:
 
 **Important**: Support is always **offered, never forced**. The user chooses whether to engage.
 
+Validation: intensity must be integer 1-10; context max 200 chars; rate limit 1 reading per user per 30 seconds to avoid spam.
+
 ---
 
 ## Get Emotional History
@@ -113,7 +115,8 @@ GET /api/v1/sessions/:id/emotions
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `stage` | number | all | Filter by stage |
-| `limit` | number | 20 | Max results |
+| `limit` | number | 20 | Max results (1-100) |
+| `cursor` | string | - | Pagination cursor |
 
 ### Response
 
@@ -148,6 +151,8 @@ POST /api/v1/sessions/:id/exercises/complete
 interface CompleteExerciseRequest {
   exerciseType: EmotionalSupportType;
   completed: boolean;  // false = skipped/declined
+  intensityBefore?: number; // optional 1-10
+  intensityAfter?: number;  // optional 1-10
 }
 ```
 
@@ -184,6 +189,8 @@ If `postExerciseCheckIn: true`, the UI should:
 1. Show a gentle prompt for new reading
 2. "How are you feeling now?" with 1-10 scale
 3. Record the new reading via `POST /emotions`
+
+Persistence: logs to `EmotionalExerciseCompletion` with optional before/after readings. Rate limit: max 5 exercise logs per user per hour to prevent abuse.
 
 ---
 

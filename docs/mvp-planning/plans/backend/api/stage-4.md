@@ -17,6 +17,18 @@ Key design:
 - Users **privately rank** their preferences
 - Overlap is revealed together
 
+### Data persistence
+- Strategies -> `StrategyProposal` (source tracked for audit; not exposed to partner)
+- Rankings -> `StrategyRanking` (ordered array of proposal ids)
+- Winning micro-experiment -> `Agreement` with `type = MICRO_EXPERIMENT` and `proposalId` reference
+- Consent: if proposals are derived from partner content, create `ConsentRecord.targetType = STRATEGY_PROPOSAL`
+
+### Data persistence
+- Strategies -> `StrategyProposal` (source tracked for audit; not exposed to partner)
+- Rankings -> `StrategyRanking` (ordered array of proposal ids)
+- Winning micro-experiment -> `Agreement` with `type = MICRO_EXPERIMENT` and `proposalId` reference
+- Consent: if proposals are derived from partner content, create `ConsentRecord.targetType = STRATEGY_PROPOSAL`
+
 ---
 
 ## Get Strategy Pool
@@ -90,6 +102,8 @@ enum StrategyPhase {
 ```
 
 **Privacy note**: Strategies are never attributed to their source. Both parties see the same unlabeled list.
+
+Validation: description required (1-800 chars), needsAddressed max 3 entries, duration/measureOfSuccess optional. Allow duplicates; UI may dedupe.
 
 ---
 
@@ -169,6 +183,8 @@ AI suggestions are generated from:
 
 **Never** from user memory (Retrieval Contract enforced).
 
+Validation: count 1-5; focusNeeds max 3 entries. Suggestions persisted as `StrategyProposal` with `source = AI_SUGGESTED`.
+
 ---
 
 ## Mark Ready to Rank
@@ -196,6 +212,8 @@ When both ready:
 - Strategy pool is locked (no new additions)
 - Partner notified
 
+Gate link: sets `strategiesSubmitted` for caller when they mark ready.
+
 ---
 
 ## Submit Ranking
@@ -210,10 +228,7 @@ POST /api/v1/sessions/:id/strategies/rank
 
 ```typescript
 interface SubmitRankingRequest {
-  rankings: {
-    strategyId: string;
-    rank: number;  // 1 = top choice
-  }[];
+  rankedIds: string[]; // Ordered strategy IDs (unique, length >= 1)
 }
 ```
 
@@ -222,6 +237,7 @@ interface SubmitRankingRequest {
 ```typescript
 interface SubmitRankingResponse {
   submitted: boolean;
+  submittedAt: string;
   partnerSubmitted: boolean;
   awaitingReveal: boolean;
 }
@@ -231,11 +247,13 @@ interface SubmitRankingResponse {
 
 Rankings are **completely private** until both submit. Neither party can see the other's choices during ranking.
 
+Validation: IDs must exist in session, no duplicates, overwrite allowed (last write wins). Gate link: sets `rankingsSubmitted` for caller.
+
 ---
 
-## Get Overlap
+## Reveal Overlap
 
-Get revealed overlap after both submit rankings.
+Reveal overlapping rankings once both users have submitted.
 
 ```
 GET /api/v1/sessions/:id/strategies/overlap
@@ -244,43 +262,18 @@ GET /api/v1/sessions/:id/strategies/overlap
 ### Response
 
 ```typescript
-interface GetOverlapResponse {
-  overlap: StrategyDTO[];           // Both parties ranked highly
-  myTopPicks: StrategyDTO[];        // My top 3
-  partnerTopPicks: StrategyDTO[];   // Partner's top 3
-  noOverlap: boolean;
+interface RevealOverlapResponse {
+  overlap: StrategyDTO[];
+  phase: StrategyPhase; // Should be REVEALING or later
 }
 ```
 
-### Example Response (With Overlap)
+### Behavior
 
-```json
-{
-  "success": true,
-  "data": {
-    "overlap": [
-      {
-        "id": "strat_002",
-        "description": "Say one specific thing I appreciate each morning for a week",
-        "needsAddressed": ["Recognition"],
-        "duration": "1 week",
-        "measureOfSuccess": "Did we remember? Did it feel genuine?"
-      }
-    ],
-    "myTopPicks": [
-      {"id": "strat_002", "description": "..."},
-      {"id": "strat_001", "description": "..."},
-      {"id": "strat_003", "description": "..."}
-    ],
-    "partnerTopPicks": [
-      {"id": "strat_002", "description": "..."},
-      {"id": "strat_003", "description": "..."},
-      {"id": "strat_004", "description": "..."}
-    ],
-    "noOverlap": false
-  }
-}
-```
+- If overlap exists: return shared highest-ranked items
+- If no overlap: return empty array and set `phase = NEGOTIATING`
+
+Gate link: sets `overlapIdentified` when overlap is computed (even if empty).
 
 ---
 
@@ -297,9 +290,10 @@ POST /api/v1/sessions/:id/agreements
 ```typescript
 interface CreateAgreementRequest {
   strategyId?: string;            // From existing strategy
-  customDescription?: string;     // Or custom agreement
-  duration: string;
-  measureOfSuccess: string;
+  description: string;            // Final agreed description (can refine strategy text)
+  type: 'MICRO_EXPERIMENT' | 'COMMITMENT' | 'CHECK_IN';
+  duration?: string;
+  measureOfSuccess?: string;
   followUpDate?: string;          // ISO 8601
 }
 ```
@@ -315,8 +309,8 @@ interface CreateAgreementResponse {
 interface AgreementDTO {
   id: string;
   description: string;
-  duration: string;
-  measureOfSuccess: string;
+  duration: string | null;
+  measureOfSuccess: string | null;
   status: AgreementStatus;
   agreedByMe: boolean;
   agreedByPartner: boolean;

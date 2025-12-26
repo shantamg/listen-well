@@ -14,6 +14,16 @@ Stage 2 has two phases:
 1. **Phase 1: Building** - User works with AI to build their empathy guess about partner
 2. **Phase 2: Exchange** - Users exchange empathy attempts and validate each other
 
+### Data persistence
+- Drafts -> `EmpathyDraft` (one per user/session)
+- Consented share -> `EmpathyAttempt` (immutable) with `ConsentRecord.targetType = EMPATHY_ATTEMPT`
+- Validation -> `EmpathyValidation` (one per recipient per attempt)
+
+### Consent semantics (MVP)
+- Consent request created when user hits `/empathy/consent`; decision stored on `ConsentRecord` (decision nullable until act).
+- Revocation on `/consent/revoke` must set `ConsentRecord.decision = REVOKED`, `consentedContent.consentActive = false`, and mark dependent SharedVessel copies as inaccessible.
+- Pending queue (`/consent/pending`) reads `ConsentRecord` rows with `decision IS NULL`.
+
 ---
 
 ## Phase 1: Building Empathy
@@ -31,6 +41,7 @@ POST /api/v1/sessions/:id/empathy/draft
 ```typescript
 interface SaveEmpathyDraftRequest {
   content: string;  // The empathy attempt text
+  readyToShare?: boolean; // Optional toggle to mark draft as ready (sets gate empathyDraftReady)
 }
 ```
 
@@ -45,10 +56,13 @@ interface SaveEmpathyDraftResponse {
 interface EmpathyDraftDTO {
   id: string;
   content: string;
-  updatedAt: string;
   version: number;
+  readyToShare: boolean;
+  updatedAt: string;
 }
 ```
+
+Validation: 1-1200 chars; trims whitespace; idempotent update (same draft row per user/session).
 
 ### Example
 
@@ -126,6 +140,14 @@ interface ConsentToShareEmpathyResponse {
   // If partner already consented, their attempt is returned
   partnerAttempt?: EmpathyAttemptDTO;
 }
+
+interface EmpathyAttemptDTO {
+  id: string;
+  sourceUserId: string;
+  content: string;
+  sharedAt: string;
+  consentRecordId: string;
+}
 ```
 
 ### Side Effects
@@ -159,6 +181,7 @@ interface GetPartnerEmpathyResponse {
   // If validated, show validation status
   validated: boolean;
   validatedAt: string | null;
+  awaitingRevision: boolean;
 }
 
 interface EmpathyAttemptDTO {
@@ -166,6 +189,7 @@ interface EmpathyAttemptDTO {
   sourceUserId: string;
   content: string;  // Partner's attempt to understand you
   sharedAt: string;
+  consentRecordId: string;
 }
 ```
 
@@ -212,6 +236,14 @@ interface ValidateEmpathyResponse {
   partnerValidated: boolean;
 }
 ```
+
+Validation: feedback max 1000 chars; one validation per recipient per attempt (idempotent overwrite allowed).
+
+### Gate keys set by Stage 2 endpoints
+- `empathyDraftReady`: set when `readyToShare` true on draft save
+- `empathyConsented`: set when user consents to share their attempt
+- `partnerConsented`: set when partner attempt becomes available
+- `partnerValidated`: set when recipient posts `validated=true`
 
 ### Example: Validation with Feedback
 

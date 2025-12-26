@@ -10,16 +10,7 @@ Database design implementing the [Vessel Architecture](../../privacy/vessel-mode
 ## Documents
 
 ### [Prisma Schema](./prisma-schema.md)
-Complete database schema with dual SQL/Vector strategy
-
-### User Vessel (coming soon)
-Private user data implementation details
-
-### Shared Vessel (coming soon)
-Consensual shared data implementation details
-
-### AI Synthesis (coming soon)
-Ephemeral synthesis with regeneration strategy
+Complete database schema with dual SQL/Vector strategy, Stage 2/4 storage, and consent semantics
 
 ## Quick Reference: Three Vessels
 

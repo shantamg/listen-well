@@ -9,172 +9,34 @@ User registration, login, and token management.
 
 ## Overview
 
-BeHeard uses JWT-based authentication:
-- Access tokens (short-lived, 15 min)
-- Refresh tokens (long-lived, 30 days)
-- Secure token rotation on refresh
+BeHeard uses **Clerk** for authentication and token issuance. Expo app integrates Clerk for signup/login/social; backend uses Clerk middleware to validate tokens. No custom password or refresh-token handling in the backend.
 
-## Register
-
-Create a new user account.
-
+### Clerk-based flow (MVP)
+1) **Mobile (Expo)**: Wrap the app root with `<ClerkProvider publishableKey={...}>`. Use Clerk hooks (`useAuth`, `useUser`) to sign in/up and obtain session tokens:
+```tsx
+const { getToken } = useAuth();
+const token = await getToken({ template: 'backend' }); // send as Bearer token
 ```
-POST /api/v1/auth/register
+2) **Backend (Express)**: Add `clerkMiddleware()` at the top-level router to validate incoming `Authorization: Bearer <Clerk JWT>`:
+```ts
+import { clerkMiddleware, requireAuth } from '@clerk/express';
+app.use(clerkMiddleware());
+app.use('/api/v1', requireAuth(), apiRouter);
 ```
+3) **User provisioning**: On first authenticated request, upsert a local `User` row keyed by the Clerk user ID (store Clerk user ID in the User table; recommend using it as the primary key or a unique `clerkUserId` field). Copy profile fields (email, name) + pushToken when available.
+4) **Token characteristics**: Tokens are Clerk session JWTs; no backend refresh endpoint is needed. Expiration/rotation is managed by Clerk.
 
-### Request Body
+The only backend-issued tokens are for Ably (`/auth/ably-token`) which require a valid Clerk session token on the request.
 
-```typescript
-interface RegisterRequest {
-  email: string;
-  password: string;
-  name?: string;
+## Register / Login
 
-  // Optional: accept invitation during registration
-  invitationId?: string;
-}
-```
+Handled entirely by Clerk in the mobile app. The backend does **not** implement `/auth/register` or `/auth/login`. Use Clerk’s SDK UI/components or custom flows in Expo; send Clerk session tokens to the backend.
 
-### Response
-
-```typescript
-interface RegisterResponse {
-  user: UserDTO;
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;  // seconds
-
-  // If invitation was included
-  session?: SessionSummaryDTO;
-}
-
-interface UserDTO {
-  id: string;
-  email: string;
-  name: string | null;
-  createdAt: string;
-}
-```
-
-### Validation
-
-- Email must be valid format and unique
-- Password minimum 8 characters
-- If `invitationId` provided, must be valid and pending
-
-### Errors
-
-| Code | When |
-|------|------|
-| `VALIDATION_ERROR` | Invalid email/password format |
-| `CONFLICT` | Email already registered |
-| `INVITATION_EXPIRED` | Invitation ID invalid or expired |
-
----
-
-## Login
-
-Authenticate with email and password.
-
-```
-POST /api/v1/auth/login
-```
-
-### Request Body
-
-```typescript
-interface LoginRequest {
-  email: string;
-  password: string;
-}
-```
-
-### Response
-
-```typescript
-interface LoginResponse {
-  user: UserDTO;
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-```
-
-### Errors
-
-| Code | When |
-|------|------|
-| `UNAUTHORIZED` | Invalid email or password |
-
----
-
-## Refresh Token
-
-Get a new access token using refresh token.
-
-```
-POST /api/v1/auth/refresh
-```
-
-### Request Body
-
-```typescript
-interface RefreshRequest {
-  refreshToken: string;
-}
-```
-
-### Response
-
-```typescript
-interface RefreshResponse {
-  accessToken: string;
-  refreshToken: string;  // New refresh token (rotation)
-  expiresIn: number;
-}
-```
-
-### Token Rotation
-
-Each refresh:
-1. Invalidates the old refresh token
-2. Issues a new refresh token
-3. If an old refresh token is reused, all tokens for that user are invalidated (security measure)
-
-### Errors
-
-| Code | When |
-|------|------|
-| `UNAUTHORIZED` | Invalid or expired refresh token |
-
----
+For invitation acceptance, the app should pass `invitationId` to Clerk’s sign-up flow, then call `/sessions/:id/compact/sign` after auth.
 
 ## Logout
 
-Invalidate current tokens.
-
-```
-POST /api/v1/auth/logout
-```
-
-### Request Body
-
-```typescript
-interface LogoutRequest {
-  refreshToken: string;
-  allDevices?: boolean;  // Logout from all devices
-}
-```
-
-### Response
-
-```typescript
-interface LogoutResponse {
-  loggedOut: boolean;
-}
-```
-
----
+Handled by Clerk SDK on the client (ends session + clears tokens). No backend endpoint required.
 
 ## Get Current User
 
@@ -193,6 +55,11 @@ interface GetMeResponse {
   pushNotificationsEnabled: boolean;
 }
 ```
+
+`GET /auth/me` should:
+- Trust Clerk middleware for auth context.
+- Upsert local user if missing (Clerk ID, email, name, pushToken).
+- Return current user profile + counts derived from local DB (sessions, etc.).
 
 ---
 

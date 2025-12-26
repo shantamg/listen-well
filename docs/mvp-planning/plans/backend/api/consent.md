@@ -48,6 +48,9 @@ enum ConsentContentType {
   EVENT_SUMMARY = 'EVENT_SUMMARY',
   EMOTIONAL_PATTERN = 'EMOTIONAL_PATTERN',
   BOUNDARY = 'BOUNDARY',
+  EMPATHY_DRAFT = 'EMPATHY_DRAFT',
+  EMPATHY_ATTEMPT = 'EMPATHY_ATTEMPT',
+  STRATEGY_PROPOSAL = 'STRATEGY_PROPOSAL'
 }
 ```
 
@@ -186,6 +189,10 @@ interface RevokeConsentResponse {
 2. `ConsentedContent.consentActive` set to false
 3. Partner can no longer access this content
 4. Content is **not deleted** - just marked inactive
+5. Derived objects become stale:
+   - CommonGround items based on revoked needs must be excluded/recomputed
+   - Agreements referencing revoked strategy proposals remain but should flag stale input
+   - EmpathyAttempt visibility revoked for partner immediately
 
 ### Important Notes
 

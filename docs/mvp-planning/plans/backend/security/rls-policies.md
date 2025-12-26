@@ -36,6 +36,12 @@ ALTER TABLE "Message" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ConsentedContent" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ConsentRecord" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "StageProgress" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmpathyDraft" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmpathyAttempt" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmpathyValidation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StrategyProposal" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StrategyRanking" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmotionalExerciseCompletion" ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS even for table owners
 ALTER TABLE "UserVessel" FORCE ROW LEVEL SECURITY;
@@ -233,8 +239,68 @@ CREATE POLICY shared_content_stage_check ON "ConsentedContent"
   USING (
     "consentActive" = true
     AND current_setting('app.current_stage', true)::int >= 2
-  );
+);
 ```
+
+## Stage 2 Policies (Empathy)
+
+```sql
+-- Draft: only owner can read/write their draft
+CREATE POLICY empathy_draft_rw ON "EmpathyDraft"
+  USING ("userId" = current_setting('app.actor_id', true))
+  WITH CHECK ("userId" = current_setting('app.actor_id', true));
+
+-- Attempt: session participants can read only the attempt addressed to them or they authored
+CREATE POLICY empathy_attempt_select ON "EmpathyAttempt"
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM "Session" s
+      JOIN "Relationship" r ON s."relationshipId" = r.id
+      JOIN "RelationshipMember" rm ON rm."relationshipId" = r.id
+      WHERE s.id = "EmpathyAttempt"."sessionId"
+        AND rm."userId" = current_setting('app.actor_id', true)
+    )
+  );
+
+-- Validation: only recipient can write their validation
+CREATE POLICY empathy_validation_rw ON "EmpathyValidation"
+  USING ("userId" = current_setting('app.actor_id', true))
+  WITH CHECK ("userId" = current_setting('app.actor_id', true));
+```
+
+## Stage 4 Policies (Strategies)
+
+```sql
+-- Strategy proposals are session-scoped; source userId is hidden at API layer
+CREATE POLICY strategy_proposal_select ON "StrategyProposal"
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM "Session" s
+      JOIN "Relationship" r ON s."relationshipId" = r.id
+      JOIN "RelationshipMember" rm ON rm."relationshipId" = r.id
+      WHERE s.id = "StrategyProposal"."sessionId"
+        AND rm."userId" = current_setting('app.actor_id', true)
+    )
+  );
+
+CREATE POLICY strategy_ranking_rw ON "StrategyRanking"
+  USING ("userId" = current_setting('app.actor_id', true))
+  WITH CHECK ("userId" = current_setting('app.actor_id', true));
+```
+
+## Emotional Exercise Completion
+
+```sql
+CREATE POLICY exercise_completion_rw ON "EmotionalExerciseCompletion"
+  USING ("userId" = current_setting('app.actor_id', true))
+  WITH CHECK ("userId" = current_setting('app.actor_id', true));
+```
+
+## Stage locals and enforcement
+
+Stage enforcement remains app-layer for MVP. DB locals (`app.current_stage`) are only used to block SharedVessel reads below Stage 2; they must mirror StageProgress and never be treated as primary truth.
 
 ## Middleware Implementation
 

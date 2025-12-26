@@ -152,6 +152,9 @@ jobs:
 | Consent flows | Critical | Trust requirements |
 | Auth/JWT | High | Security |
 | RLS policies | High | Defense in depth |
+| Stage 3/4 data paths | High | Needs/common-ground integrity; unlabeled strategy pool |
+| Revocation cascades | High | Ensure SharedVessel content becomes inaccessible immediately |
+| External integrations mocked | High | Ably/Expo/Bedrock mocked to keep tests deterministic |
 
 ### Can Skip (MVP)
 

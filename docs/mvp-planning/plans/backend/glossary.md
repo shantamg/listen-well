@@ -54,7 +54,7 @@ Canonical definitions for BeHeard backend terminology. Use these terms consisten
 |------|------------|----------------|
 | **RLS** | Row-Level Security. Postgres feature enforcing access at database level. | Prisma + SET LOCAL |
 | **Dirty Flag** | Boolean indicating AI Synthesis cache needs regeneration. | StageProgress.isSynthesisDirty |
-| **Airlock** | Async queue for notifications when partner is offline. | BullMQ/Redis |
+| **Airlock** | (Future) Async queue for notifications when partner is offline. | BullMQ/Redis; not required for MVP (use Ably + Expo push directly) |
 | **Context Bundle** | Pre-assembled data package sent to Large Model. | Context Assembler |
 
 ## State Terms

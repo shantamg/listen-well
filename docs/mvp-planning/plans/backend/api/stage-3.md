@@ -99,6 +99,8 @@ Synthesis is regenerated when:
 - `isDirty` is true and needs are requested
 - User explicitly requests resynthesis
 
+Validation: needs array size 2-8; each need has evidence 1-5 items; aiConfidence 0-1. `isDirty` derived from StageProgress.isSynthesisDirty.
+
 ---
 
 ## Confirm Needs
@@ -129,9 +131,11 @@ interface NeedConfirmation {
 interface ConfirmNeedsResponse {
   updated: IdentifiedNeedDTO[];
   allConfirmed: boolean;
-  canProceedToCommonGround: boolean;
+  canProceedToCommonGround: boolean; // true when at least one confirmed AND consent flow ready
 }
 ```
+
+Validation: confirmation required for each presented need; adjustment max 300 chars. Sets gate `needsConfirmed` for caller. If partner confirmed their needs, sets `partnerNeedsConfirmed` derived flag.
 
 ### Example
 
@@ -174,6 +178,8 @@ interface AddNeedResponse {
 }
 ```
 
+Validation: need/description 1-200 chars; category required; creates IdentifiedNeed with `confirmed=false` and sets `isSynthesisDirty=false` for added item.
+
 ---
 
 ## Consent to Share Needs
@@ -210,6 +216,9 @@ interface ConsentShareNeedsResponse {
 1. Selected needs transformed and added to SharedVessel
 2. Partner notified
 3. If both consented, common ground analysis triggered
+4. Creates `ConsentRecord` rows with `targetType = IDENTIFIED_NEED`, links ConsentedContent
+
+Validation: needIds must be confirmed needs; at least 1. Sets gate `needsConfirmed` already true; partner’s consent sets `partnerNeedsConfirmed`.
 
 ---
 
@@ -280,6 +289,8 @@ Common ground is identified when:
 - Deeper analysis finds connected needs (e.g., "recognition" and "appreciation")
 - AI detects underlying shared needs beneath surface differences
 
+Validation: commonGround array size 1-5; description 1-200 chars. Only needs with active consent participate.
+
 ---
 
 ## Confirm Common Ground
@@ -312,6 +323,8 @@ interface ConfirmCommonGroundResponse {
 }
 ```
 
+Validation: confirmations must reference items in current commonGround list; setting allConfirmedByMe true sets gate `commonGroundConfirmed` when partner also confirms.
+
 ---
 
 ## Stage 3 Gate Requirements
@@ -320,12 +333,11 @@ To advance from Stage 3 to Stage 4:
 
 | Gate | Requirement |
 |------|-------------|
-| `needsIdentified` | AI has synthesized needs |
 | `needsConfirmed` | User confirmed at least one need |
-| `needsConsentedToShare` | User consented to share needs |
-| `commonGroundIdentified` | At least one common ground found and confirmed by both |
+| `partnerNeedsConfirmed` | Partner confirmed their needs |
+| `commonGroundConfirmed` | Both confirmed at least one common ground |
 
-**Both** users must confirm common ground before either can advance.
+**Both** users must confirm common ground before either can advance. Consent to share needs is required to generate common ground.
 
 ---
 

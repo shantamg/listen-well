@@ -250,6 +250,11 @@ function getPushMessage(event: string, data: any) {
 }
 ```
 
+### Storage and rate limits
+- Push tokens are stored on `User.pushToken` (optional) and updated on login.
+- Nudge/reminder actions must be rate limited (e.g., 1 per 6 hours per partner) and logged.
+- If push token is missing, fall back to Ably only; do not error.
+
 ## Auth Token Endpoint
 
 Backend endpoint for Ably token requests:
