@@ -27,9 +27,10 @@ These rules are constitutional and must never be compromised:
 
 - **Runtime**: Node.js with Express
 - **ORM**: Prisma with RLS middleware
-- **Database**: PostgreSQL + pgvector + Row-Level Security
-- **Queue**: Redis + BullMQ (async notifications, airlock)
-- **AI Models**: Small model (mechanics) + Large model (facilitation)
+- **Database**: PostgreSQL (Render) + pgvector + Row-Level Security
+- **Queue**: `graphile-worker` (Postgres-backed job queue for Airlock/Notifications)
+- **AI Models**: AWS Bedrock (Haiku for small tasks, Sonnet for facilitation)
+- **Infrastructure**: Render.com (Web Service + Background Worker + Managed Postgres)
 
 ## Dual-Layer Data Strategy
 

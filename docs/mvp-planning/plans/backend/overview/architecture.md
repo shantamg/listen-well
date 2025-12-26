@@ -43,11 +43,10 @@ flowchart TB
     subgraph "Data Layer"
         SQL[(PostgreSQL + RLS)]
         VEC[(pgvector)]
-        REDIS[(Redis)]
     end
 
     subgraph "Async Layer"
-        QUEUE[Job Queue - BullMQ]
+        QUEUE[Job Queue - graphile-worker]
         NOTIFY[Notification Worker]
     end
 
@@ -58,7 +57,7 @@ flowchart TB
 
     SESSION --> QUEUE
     QUEUE --> NOTIFY
-    QUEUE --> REDIS
+    QUEUE --> SQL
 
     SESSION --> STAGE
     STAGE --> GATE
@@ -113,9 +112,8 @@ flowchart TB
 
 | Component | Responsibility |
 |-----------|----------------|
-| Job Queue (BullMQ) | Handles async operations when users are offline |
+| Job Queue (graphile-worker) | Handles async operations when users are offline, backed by PostgreSQL |
 | Notification Worker | Sends push notifications, emails for stage events |
-| Redis | Queue persistence and job state |
 
 **Why an Airlock is Required:**
 
@@ -127,8 +125,8 @@ When User A completes Stage 1, User B might be offline. The Session Manager cann
 // When User A completes a stage
 await prisma.stageProgress.update({ ... });
 
-// Enqueue notification - don't wait for delivery
-await notificationQueue.add('stage_complete', {
+// Enqueue notification via graphile-worker - don't wait for delivery
+await addJob('stage_complete', {
   sessionId,
   userId: partnerUserId,
   stage: completedStage,
