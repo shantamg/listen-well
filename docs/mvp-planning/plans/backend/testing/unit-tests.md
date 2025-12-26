@@ -337,7 +337,7 @@ jest.mock('@/db', () => ({
 
 - [Integration Tests](./integration-tests.md)
 - [Retrieval Contracts](../state-machine/retrieval-contracts.md)
-- [Stage DTOs](../../../../shared/src/dto/stage.ts)
+- Stage DTOs: `shared/src/dto/stage.ts`
 
 ---
 

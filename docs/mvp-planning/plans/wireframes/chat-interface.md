@@ -258,7 +258,7 @@ Supported types:
 - Text files
 
 :::tip See it in action
-[Try the Attachment Support demo →](/demo/features/attachments.html) - See how screenshots and documents are shared for context.
+<a href="/demo/features/attachments.html" target="_blank" rel="noreferrer">Try the Attachment Support demo →</a> - See how screenshots and documents are shared for context.
 :::
 
 ---

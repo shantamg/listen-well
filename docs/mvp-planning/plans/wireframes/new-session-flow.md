@@ -3,7 +3,7 @@
 The flow for creating a new session and inviting someone to work through a conflict together.
 
 :::tip See it in action
-[Try the New Session demo →](/demo/features/new-session.html) - Invite someone, add a topic, resend or cancel, and watch acceptance take you into the process.
+<a href="/demo/features/new-session.html" target="_blank" rel="noreferrer">Try the New Session demo →</a> - Invite someone, add a topic, resend or cancel, and watch acceptance take you into the process.
 :::
 
 ## Entry Points

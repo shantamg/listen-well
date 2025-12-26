@@ -99,7 +99,7 @@ GET /api/v1/sessions/:id/stages/:stage/gates
 
 ### Response
 
-Returns stage-specific gate structure. See [Stage DTOs](../../../shared/src/dto/stage.ts) for all gate types.
+Returns stage-specific gate structure. See Stage DTOs in `shared/src/dto/stage.ts` for all gate types.
 
 ### Stage 0 Gates
 

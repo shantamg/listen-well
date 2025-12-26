@@ -325,7 +325,7 @@ useEffect(() => {
 
 ## Related Documentation
 
-- [Architecture: Realtime](../overview/architecture.md#realtime)
+- [Architecture: Realtime](../overview/architecture.md#realtime-layer-presence-based-notifications)
 - [Session States](../state-machine/index.md)
 - [Push Notifications Setup](../../deployment/push-notifications.md)
 
