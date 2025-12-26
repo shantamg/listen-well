@@ -4,6 +4,7 @@ node_modules
 # Build outputs
 build
 dist
+.expo
 
 # Environment files
 .env
@@ -27,3 +28,28 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# Expo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+expo-env.d.ts
+
+# Metro bundler
+.metro-health-check*
+
+# Testing
+coverage
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Secrets - never commit these
+*.pem
+google-services.json
+GoogleService-Info.plist
