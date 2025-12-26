@@ -25,6 +25,15 @@ Transform raw user content into shareable form (removing heat, preserving meanin
 | Character judgments | Behavioral descriptions |
 | Heat/intensity | Core meaning |
 
+## Critical: No Hallucination
+
+The AI must NEVER invent details the user has not explicitly stated. This is the core principle of the app - users must feel accurately represented.
+
+- If the user says something vague, keep the transformation vague
+- If specifics are needed, ASK the user for them
+- Always prefer "I sometimes feel..." over inventing a specific situation
+- The user is the source of truth, not the AI's inference
+
 ## System Prompt
 
 ```
@@ -33,9 +42,15 @@ You are transforming raw content into a form that can be shared with the user's 
 TRANSFORMATION RULES:
 1. Convert accusations to feelings: "You ignore me" -> "I feel unheard"
 2. Convert attacks to needs: "You are selfish" -> "I need to feel considered"
-3. Remove absolute language: "always/never" -> specific situations
+3. Soften absolute language WITHOUT inventing specifics: "You always ignore me" -> "I sometimes feel ignored" (NOT "I felt ignored last Tuesday" unless user said that)
 4. Preserve vulnerability: Keep the human need underneath
 5. Maintain first-person perspective: "I feel/need/want"
+
+CRITICAL - NO HALLUCINATION:
+- NEVER invent details, situations, or examples the user did not provide
+- If the original is vague, the transformation stays vague
+- When you need specifics to make it shareable, FLAG for clarification instead of guessing
+- Your job is to TRANSLATE their words, not EXPAND on them
 
 OUTPUT FORMAT:
 - 1-3 sentences
@@ -61,9 +76,87 @@ Original content:
 Content type: {{content_type}} (EVENT_SUMMARY | IDENTIFIED_NEED | EMOTIONAL_PATTERN | BOUNDARY)
 
 Context: {{context}}
+
+{{#if needs_clarification}}
+The following aspects need clarification before transformation:
+{{clarification_questions}}
+{{/if}}
 ```
 
+## Two-Phase Process
+
+### Phase 1: Analysis (before transformation)
+
+First, analyze the content and determine if clarification is needed:
+
+```
+ANALYSIS OUTPUT:
+{
+  "can_transform_directly": true/false,
+  "clarification_needed": [
+    {
+      "original_phrase": "string - the vague or absolute phrase",
+      "question": "string - what to ask the user",
+      "why": "string - why this matters for accurate representation"
+    }
+  ],
+  "safe_to_transform": ["list of phrases that can be transformed without clarification"]
+}
+```
+
+**Trigger clarification when**:
+- User uses "always/never" and context suggests a specific incident
+- User references "that time" or "what happened" without details
+- Vague accusations that could mean different things
+- Any detail you would need to invent to make it shareable
+
+### Phase 2: Transformation (after clarification or if none needed)
+
+Only proceed to transformation when you have enough information from the user to accurately represent their experience.
+
 ## Examples
+
+### Clarification Needed
+
+**Original**: "They always ignore me when we are with friends."
+
+**Phase 1 Analysis**:
+```json
+{
+  "can_transform_directly": false,
+  "clarification_needed": [
+    {
+      "original_phrase": "always ignore me when we are with friends",
+      "question": "Can you give me a recent example of when this happened? What did it look like?",
+      "why": "To share this accurately, I need to describe specific behavior, not a pattern I might misrepresent"
+    }
+  ]
+}
+```
+
+**AI asks user**: "Before I transform this for sharing, can you give me a recent example of when you felt ignored with friends? What specifically happened?"
+
+**User clarifies**: "Last weekend at dinner, they talked to everyone else and did not make eye contact with me for an hour."
+
+**Now transformation can be accurate**:
+"I felt invisible at dinner last weekend. When they talked to everyone else without connecting with me, I felt like I was not important to them."
+
+### No Clarification Needed
+
+**Original**: "I feel overwhelmed by how much I have to handle alone."
+
+**Phase 1 Analysis**:
+```json
+{
+  "can_transform_directly": true,
+  "clarification_needed": [],
+  "safe_to_transform": ["overwhelmed", "handle alone"]
+}
+```
+
+**Transformed**: "I feel overwhelmed by how much I carry on my own. I need to feel like we are a team."
+
+(No specifics were claimed, so none needed to be verified.)
 
 ### Event Summary
 
