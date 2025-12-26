@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>New Session & Invitation - BeHeard Demo</title>
+    <link rel="stylesheet" href="../styles/shared.css">
+</head>
+<body>
+    <div class="phone-frame">
+        <header class="header">
+            <a href="index.html" class="header-back">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                All Demos
+            </a>
+            <div class="header-top">
+                <div class="header-logo">BeHeard</div>
+                <div class="header-stage">New Session</div>
+            </div>
+        </header>
+
+        <div class="content-area" id="contentArea">
+            <!-- Dynamic content -->
+        </div>
+
+        <div class="input-area" id="inputArea">
+            <div class="input-wrapper">
+                <textarea class="input-field" id="inputField" placeholder="Add a short note for your invitation..." rows="1"></textarea>
+            </div>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            step: 'select', // select -> topic -> sent -> waiting -> accepted
+            invitee: null,
+            note: ''
+        };
+
+        const people = ['Alex (no active session)', 'Jordan (no active session)', 'Process alone'];
+
+        function addMessage(text, type = 'ai') {
+            const content = document.getElementById('contentArea');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            content.appendChild(msg);
+            content.scrollTop = content.scrollHeight;
+        }
+
+        function addPanel(title, body) {
+            const content = document.getElementById('contentArea');
+            const panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.innerHTML = `
+                <div class="panel-header">${title}</div>
+                <div class="panel-content">${body}</div>
+            `;
+            content.appendChild(panel);
+            content.scrollTop = content.scrollHeight;
+        }
+
+        function renderSelect() {
+            const content = document.getElementById('contentArea');
+            content.innerHTML = '';
+
+            addMessage('Who would you like to invite? You can also process alone.');
+
+            const list = document.createElement('div');
+            list.className = 'person-list';
+            people.forEach(person => {
+                const card = document.createElement('div');
+                card.className = 'person-card';
+                card.innerHTML = `
+                    <div class="person-avatar">${person[0]}</div>
+                    <div class="person-info">
+                        <div class="person-name">${person}</div>
+                        <div class="person-status">${person === 'Process alone' ? 'Inner Work mode' : 'No active session'}</div>
+                    </div>
+                `;
+                card.onclick = () => selectInvitee(person);
+                list.appendChild(card);
+            });
+            content.appendChild(list);
+        }
+
+        function selectInvitee(person) {
+            if (person === 'Process alone') {
+                addMessage('Switching to Inner Work. You can start journaling right away.');
+                document.getElementById('inputField').placeholder = 'What pattern do you want to process?';
+                state.step = 'topic';
+                state.invitee = 'Inner Work';
+                return;
+            }
+            state.invitee = person.split(' ')[0];
+            state.step = 'topic';
+            document.getElementById('contentArea').innerHTML = '';
+            addMessage(`Great. You are inviting ${state.invitee}. What is the topic? Keep it short.`);
+            addPanel('Tip', 'Describe the situation, not the solution. Example: “Feeling unheard during weekly planning.”');
+            document.getElementById('inputField').placeholder = 'Briefly, what is on your mind?';
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('inputField');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+
+            if (state.step === 'topic') {
+                state.note = text;
+                showInvitationSent();
+            } else if (state.step === 'waiting') {
+                addMessage('Noted. We will include that when we ping your partner again.');
+            }
+        }
+
+        function showInvitationSent() {
+            state.step = 'sent';
+            document.getElementById('contentArea').innerHTML = '';
+            addMessage(`Invitation sent to ${state.invitee}.`);
+            addPanel('While you wait', 'You can start Inner Work, review the Curiosity Compact, or prep what you want to share.');
+            showActions();
+        }
+
+        function showActions() {
+            const content = document.getElementById('contentArea');
+            const container = document.createElement('div');
+            container.style.padding = 'var(--spacing-md)';
+            container.style.display = 'flex';
+            container.style.gap = 'var(--spacing-sm)';
+            container.style.flexWrap = 'wrap';
+
+            const resend = document.createElement('button');
+            resend.className = 'btn btn-outline';
+            resend.textContent = 'Resend invite';
+            resend.onclick = resendInvite;
+            container.appendChild(resend);
+
+            const cancel = document.createElement('button');
+            cancel.className = 'btn btn-outline';
+            cancel.textContent = 'Cancel invite';
+            cancel.onclick = cancelInvite;
+            container.appendChild(cancel);
+
+            const startInner = document.createElement('button');
+            startInner.className = 'btn btn-primary';
+            startInner.textContent = 'Start Inner Work';
+            startInner.onclick = startInnerWork;
+            container.appendChild(startInner);
+
+            content.appendChild(container);
+        }
+
+        function resendInvite() {
+            addMessage(`Resent the invitation to ${state.invitee}.`);
+            if (state.note) addMessage(`Included your note: "${state.note}".`);
+            state.step = 'waiting';
+            document.getElementById('inputField').placeholder = 'Add another note for the resend (optional)...';
+            simulateAcceptance();
+        }
+
+        function cancelInvite() {
+            addMessage('Invitation cancelled. You can invite someone else anytime.');
+            state.step = 'select';
+            setTimeout(renderSelect, 800);
+        }
+
+        function startInnerWork() {
+            addMessage('Inner Work started. This stays private unless you choose to share later.');
+            document.getElementById('inputField').placeholder = 'What pattern do you want to explore?';
+            state.step = 'topic';
+            state.invitee = 'Inner Work';
+        }
+
+        function simulateAcceptance() {
+            setTimeout(() => {
+                addMessage(`${state.invitee} accepted your invitation.`);
+                addPanel('Next', 'We will take you both to Stage 0 to sign the Curiosity Compact.');
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-primary';
+                btn.textContent = 'Go to Session Dashboard';
+                btn.onclick = () => {
+                    addMessage('Opening the session dashboard...');
+                };
+                const wrapper = document.createElement('div');
+                wrapper.style.padding = 'var(--spacing-md)';
+                wrapper.appendChild(btn);
+                document.getElementById('contentArea').appendChild(wrapper);
+                state.step = 'accepted';
+            }, 1200);
+        }
+
+        // Input grow
+        document.getElementById('inputField').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        document.getElementById('inputField').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function startDemo() {
+            addMessage('Start a new session by inviting someone or choosing Inner Work.');
+            renderSelect();
+        }
+
+        startDemo();
+    </script>
+</body>
+</html>

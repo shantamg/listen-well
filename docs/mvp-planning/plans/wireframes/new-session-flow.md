@@ -2,6 +2,10 @@
 
 The flow for creating a new session and inviting someone to work through a conflict together.
 
+:::tip See it in action
+[Try the New Session demo →](/demo/features/new-session.html) - Invite someone, add a topic, resend or cancel, and watch acceptance take you into the process.
+:::
+
 ## Entry Points
 
 Users can start a new session from:

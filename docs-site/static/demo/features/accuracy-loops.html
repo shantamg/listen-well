@@ -231,84 +231,14 @@
             bubble.innerHTML = `
                 <div class="reflection-label">My understanding</div>
                 <div class="reflection-text">${data.text}</div>
-                ${!data.final ? `
-                    <div class="accuracy-buttons">
-                        <button class="accuracy-btn correct" onclick="confirmAccurate()">
-                            <span>&#10003;</span> That is right
-                        </button>
-                        <button class="accuracy-btn incorrect" onclick="requestCorrection()">
-                            <span>&#8634;</span> Not quite
-                        </button>
-                    </div>
-                ` : ''}
+                <div class="accuracy-buttons">
+                    <span class="accuracy-btn incorrect" style="background: none; border: none; color: var(--text-secondary); cursor: default; justify-content: flex-start; padding-left: 0;">
+                        Tell me if this captures it or type what I missed.
+                    </span>
+                </div>
             `;
             content.appendChild(bubble);
             content.scrollTop = content.scrollHeight;
-
-            if (data.final) {
-                setTimeout(() => {
-                    showFinalAccuracyCheck();
-                }, 500);
-            }
-        }
-
-        function showFinalAccuracyCheck() {
-            const content = document.getElementById('contentArea');
-            const container = document.createElement('div');
-            container.style.display = 'flex';
-            container.style.gap = 'var(--spacing-sm)';
-            container.style.padding = 'var(--spacing-md) 0';
-
-            const correctBtn = document.createElement('button');
-            correctBtn.className = 'accuracy-btn correct';
-            correctBtn.innerHTML = '<span>&#10003;</span> Yes, that captures it';
-            correctBtn.onclick = confirmAccurate;
-
-            const incorrectBtn = document.createElement('button');
-            incorrectBtn.className = 'accuracy-btn incorrect';
-            incorrectBtn.innerHTML = '<span>&#8634;</span> Not quite right';
-            incorrectBtn.onclick = requestCorrection;
-
-            container.appendChild(correctBtn);
-            container.appendChild(incorrectBtn);
-            content.appendChild(container);
-        }
-
-        function confirmAccurate() {
-            // Remove buttons
-            const bubble = document.getElementById('reflectionBubble');
-            const buttons = bubble?.querySelector('.accuracy-buttons');
-            if (buttons) buttons.remove();
-
-            const accuracyBtns = document.querySelectorAll('.accuracy-btn');
-            accuracyBtns.forEach(btn => btn.parentElement?.remove());
-
-            addMessage('Yes, that captures it', 'user');
-
-            showTyping();
-            setTimeout(() => {
-                hideTyping();
-                showSuccess();
-            }, 800);
-        }
-
-        function requestCorrection() {
-            // Remove buttons
-            const bubble = document.getElementById('reflectionBubble');
-            const buttons = bubble?.querySelector('.accuracy-buttons');
-            if (buttons) buttons.remove();
-
-            const accuracyBtns = document.querySelectorAll('.accuracy-btn');
-            accuracyBtns.forEach(btn => btn.parentElement?.remove());
-
-            addMessage('Not quite', 'user');
-
-            showTyping();
-            setTimeout(() => {
-                hideTyping();
-                addMessage('Help me understand better - what did I miss? Type your thoughts.');
-                // User types their own correction in the input field
-            }, 800);
         }
 
         function sendMessage() {
@@ -316,31 +246,44 @@
             const text = input.value.trim();
             if (!text) return;
 
-            sendCorrection(text);
+            handleFeedback(text);
             input.value = '';
             input.style.height = 'auto';
         }
 
-        function sendCorrection(text) {
+        function handleFeedback(text) {
             addMessage(text, 'user');
 
-            iteration++;
-            updateIterationBadge();
+            const normalized = text.toLowerCase();
+            const isAffirmative = normalized.includes('yes') || normalized.includes('right') || normalized.includes('correct') || normalized.includes('that is it');
 
-            if (iteration < reflections.length) {
+            if (isAffirmative || reflections[iteration]?.final) {
                 showTyping();
                 setTimeout(() => {
                     hideTyping();
-                    addMessage('I hear you. Let me try again:');
-                    setTimeout(showReflection, 800);
-                }, 1000);
+                    showSuccess();
+                }, 800);
+                return;
+            }
+
+            // User offered a correction
+            addMessage('Thanks for clarifying. Let me restate what I heard:');
+
+            if (iteration < reflections.length - 1) {
+                iteration++;
+                updateIterationBadge();
+                showTyping();
+                setTimeout(() => {
+                    hideTyping();
+                    showReflection();
+                }, 900);
             } else {
                 showTyping();
                 setTimeout(() => {
                     hideTyping();
-                    addMessage('Thank you for your patience in helping me understand. Getting this right matters.');
-                    setTimeout(showRestart, 1500);
-                }, 1000);
+                    addMessage('I appreciate the detail. Here is the best way I can hold it:');
+                    setTimeout(showSuccess, 900);
+                }, 900);
             }
         }
 

@@ -257,6 +257,10 @@ Supported types:
 - PDFs (documents, emails)
 - Text files
 
+:::tip See it in action
+[Try the Attachment Support demo →](/demo/features/attachments.html) - See how screenshots and documents are shared for context.
+:::
+
 ---
 
 ## Related Documents

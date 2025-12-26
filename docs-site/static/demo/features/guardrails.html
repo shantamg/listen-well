@@ -175,6 +175,17 @@
         <div class="content-area" id="contentArea">
             <!-- Dynamic content -->
         </div>
+
+        <div class="input-area" id="inputArea">
+            <div class="input-wrapper">
+                <textarea class="input-field" id="inputField" placeholder="Type anything you want to try. I will hold the boundary." rows="1"></textarea>
+            </div>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
+        </div>
     </div>
 
     <script>
@@ -329,6 +340,39 @@
             content.appendChild(container);
             content.scrollTop = content.scrollHeight;
         }
+
+        function respondToUser(text) {
+            const scenario = scenarios[currentScenario] || scenarios[0];
+            addMessage('I hear you. Here is how I would keep the boundary:');
+            addMessage(scenario.aiResponse);
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('inputField');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+
+            setTimeout(() => {
+                respondToUser(text);
+            }, 500);
+        }
+
+        // Input grow
+        document.getElementById('inputField').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        document.getElementById('inputField').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
         function startDemo() {
             addMessage('This demo shows how BeHeard maintains healthy boundaries while staying supportive.');

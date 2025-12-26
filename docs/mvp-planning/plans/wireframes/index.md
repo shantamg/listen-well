@@ -9,12 +9,14 @@ UI concepts and screen layouts for key BeHeard interfaces.
 - **[Person Detail](./person-detail.md)** - Relationship view with session history
 - **[Session Dashboard](./session-dashboard.md)** - Preparation space before stage work
 - **[New Session Flow](./new-session-flow.md)** - Invitation and session creation
+- **[Authentication & First-Run](./auth-flow.md)** - Signup, login, and first-open states
 
 ### Core Experience
 - **[Core Layout](./core-layout.md)** - Base app structure and navigation
 - **[Chat Interface](./chat-interface.md)** - The primary conversation interface
 - **[Stage Controls](./stage-controls.md)** - Stage progression and status UI
 - **[Emotional Barometer UI](./emotional-barometer-ui.md)** - Emotion tracking interface
+- **[Notifications UX](./notifications.md)** - Push, toast, inbox, and preferences
 
 ## Design Principles
 

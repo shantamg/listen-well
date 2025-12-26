@@ -232,6 +232,9 @@ Header links back to main journey demo.
 | `mechanisms/mirror-intervention.md` | process-explanation.html, accuracy-loops.html |
 | `mechanisms/consensual-bridge.md` | consensual-bridge.html |
 | `mechanisms/guardrails.md` | guardrails.html |
+| `wireframes/chat-interface.md` | attachments.html |
+| `wireframes/home-dashboard.md` | dashboard.html |
+| `wireframes/new-session-flow.md` | new-session.html |
 | `stages/stage-4-strategic-repair.md` | follow-up.html |
 | `index.md` | Demo gallery link |
 
