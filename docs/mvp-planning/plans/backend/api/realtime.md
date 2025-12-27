@@ -267,11 +267,25 @@ GET /api/v1/auth/ably-token
 
 ```typescript
 interface AblyTokenResponse {
-  token: string;
-  expires: number;
-  capability: Record<string, string[]>;
+  tokenRequest: {
+    keyName: string;
+    ttl: number;         // Token TTL in milliseconds
+    timestamp: number;
+    capability: string;
+    clientId: string;
+    nonce: string;
+    mac: string;
+  };
 }
 ```
+
+### Token Configuration
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| **TTL** | 60 minutes | Long enough for typical session, short enough for security |
+| **Refresh threshold** | 5 minutes before expiry | Proactive refresh prevents disruption |
+| **Max capability scope** | User's active sessions only | Principle of least privilege |
 
 ### Capability
 
@@ -290,6 +304,35 @@ function generateAblyCapability(userId: string, sessionIds: string[]) {
 }
 ```
 
+### Token Lifecycle During Stage 4
+
+Stage 4 requires sustained real-time coordination. Token expiry mid-negotiation could disrupt emotional flow:
+
+```mermaid
+sequenceDiagram
+    participant App as Mobile App
+    participant Ably as Ably Client
+    participant Backend as Backend
+
+    Note over App,Backend: Token has 60-min TTL
+    App->>Ably: Connected, active in Stage 4
+
+    loop Every 55 minutes
+        Ably-->>App: Token nearing expiry (authCallback triggered)
+        App->>Backend: GET /auth/ably-token
+        Backend-->>App: New token (fresh 60-min TTL)
+        Ably->>Ably: Seamless token swap
+    end
+
+    Note over App,Ably: User never notices refresh
+```
+
+**Key Design:**
+- Ably SDK's `authCallback` handles proactive refresh
+- Refresh happens ~5 minutes before expiry (configurable via `tokenParams.ttl`)
+- Connection is NOT dropped during refresh
+- If refresh fails, SDK retries with exponential backoff
+
 ## Error Handling
 
 ### Connection Recovery
@@ -304,6 +347,34 @@ ably.connection.on('connected', () => {
   // Resync state after reconnection
   refetchSessionState();
 });
+
+// Handle suspended state (connection lost for extended period)
+ably.connection.on('suspended', () => {
+  setConnectionStatus('suspended');
+  // Show gentle UI indicator - avoid alarming user during emotional process
+});
+```
+
+### Stage 4 Recovery Strategy
+
+Stage 4 negotiation requires special handling to prevent emotional disruption:
+
+| Connection State | User Impact | Recovery Action |
+|-----------------|-------------|-----------------|
+| `disconnected` (< 30s) | Invisible to user | Silent reconnect |
+| `disconnected` (30s-2min) | Subtle indicator | "Reconnecting..." toast |
+| `suspended` (> 2min) | Full notice | Modal with "Connection lost. Your progress is saved." |
+| `failed` | Critical | Fall back to polling + clear explanation |
+
+**Critical Invariant:** Rankings and proposals are persisted server-side immediately. Connection loss never causes data loss.
+
+```typescript
+// Stage 4 specific: more aggressive recovery
+const STAGE_4_RECOVERY_CONFIG = {
+  connectionStateTtl: 120000,    // 2 minutes before suspended
+  disconnectedRetryTimeout: 5000, // Retry every 5s when disconnected
+  suspendedRetryTimeout: 15000,   // Retry every 15s when suspended
+};
 ```
 
 ### Fallback to Polling
@@ -321,6 +392,20 @@ useEffect(() => {
     return () => clearInterval(interval);
   }
 }, [connectionStatus]);
+```
+
+### Token Refresh Failure Handling
+
+If token refresh fails (e.g., Clerk session expired):
+
+```typescript
+ably.connection.on('failed', (stateChange) => {
+  if (stateChange.reason?.code === 40142) { // Token error
+    // Clerk session may have expired - trigger re-auth
+    await clerk.session.touch(); // Attempt session refresh
+    ably.connect(); // Retry with fresh Clerk token
+  }
+});
 ```
 
 ## Related Documentation

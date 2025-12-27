@@ -21,6 +21,8 @@ Every stage has a hard retrieval contract that defines exactly what data can and
 
 > Retrieval scope is fixed per turn. Retrieval planning occurs once; generation may not trigger additional retrieval.
 
+> Small Model schema enforcement: The retrieval planner (Haiku) outputs structured JSON that is validated before execution. Invalid queries fail fast with fallback to minimal context.
+
 ## Contract Structure
 
 Each contract specifies:
@@ -66,6 +68,71 @@ function isValidQuery(query: RetrievalQuery, stage: number): boolean {
   return matchesSchema && passesContract;
 }
 ```
+
+### Small Model Schema Enforcement
+
+The retrieval planner (Claude 3.5 Haiku) outputs JSON that must conform to `RetrievalQuery[]`. This is enforced through:
+
+**1. Structured Output Prompting**
+
+```
+Output a JSON array of retrieval queries. Each query MUST match one of these exact shapes:
+- { "type": "session_metadata", "source": "metadata" }
+- { "type": "user_event", "vessel": "user", "source": "structured"|"vector", "userId": "<current_user_id>" }
+...
+
+Do NOT invent new query types. If uncertain, output an empty array [].
+```
+
+**2. Runtime Validation with Zod**
+
+```typescript
+import { z } from 'zod';
+
+const RetrievalQuerySchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('session_metadata'), source: z.literal('metadata') }),
+  z.object({ type: z.literal('user_event'), vessel: z.literal('user'), source: z.enum(['structured', 'vector', 'metadata']), userId: z.string() }),
+  // ... all other valid query shapes
+]);
+
+function parseRetrievalPlan(rawOutput: string): RetrievalQuery[] {
+  try {
+    const parsed = JSON.parse(rawOutput);
+    return z.array(RetrievalQuerySchema).parse(parsed);
+  } catch (e) {
+    // Schema validation failed - log for monitoring, use fallback
+    logger.warn('Retrieval plan schema violation', { rawOutput, error: e });
+    return []; // Empty retrieval = minimal context bundle
+  }
+}
+```
+
+**3. Fallback Strategy**
+
+When the small model outputs invalid queries:
+
+| Failure Mode | Detection | Fallback |
+|--------------|-----------|----------|
+| Malformed JSON | JSON.parse throws | Empty retrieval (minimal context) |
+| Unknown query type | Zod discriminatedUnion fails | Filter out invalid, keep valid |
+| Wrong userId | Stage contract validation | Reject that query, keep others |
+| All queries invalid | Empty valid set | Minimal context bundle (current message only) |
+
+**4. Monitoring and Tuning**
+
+Schema violations are logged with full context for prompt tuning:
+
+```typescript
+if (validQueries.length < attemptedQueries.length) {
+  metrics.increment('retrieval.schema_violations', {
+    stage,
+    rejected: attemptedQueries.length - validQueries.length,
+    total: attemptedQueries.length
+  });
+}
+```
+
+**Target**: < 1% schema violation rate. If exceeded, the Haiku prompt needs adjustment.
 
 ## Context Bundles (What the Model Sees)
 

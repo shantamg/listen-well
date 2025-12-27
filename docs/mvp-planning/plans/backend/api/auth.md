@@ -5,7 +5,7 @@ sidebar_position: 13
 
 # Authentication API
 
-User registration, login, and token management.
+Authentication via Clerk with backend user provisioning and Ably token management.
 
 ## Overview
 
@@ -116,65 +116,6 @@ interface UpdatePushTokenResponse {
 
 ---
 
-## Request Password Reset
-
-Request a password reset email.
-
-```
-POST /api/v1/auth/forgot-password
-```
-
-### Request Body
-
-```typescript
-interface ForgotPasswordRequest {
-  email: string;
-}
-```
-
-### Response
-
-```typescript
-interface ForgotPasswordResponse {
-  sent: boolean;
-  // Always returns true to prevent email enumeration
-}
-```
-
----
-
-## Reset Password
-
-Reset password with token from email.
-
-```
-POST /api/v1/auth/reset-password
-```
-
-### Request Body
-
-```typescript
-interface ResetPasswordRequest {
-  token: string;
-  newPassword: string;
-}
-```
-
-### Response
-
-```typescript
-interface ResetPasswordResponse {
-  reset: boolean;
-}
-```
-
-### Side Effects
-
-- All existing tokens are invalidated
-- User must log in again
-
----
-
 ## Ably Token
 
 Get an Ably token for real-time connections.
@@ -212,54 +153,26 @@ Token is scoped to user's active sessions only:
 
 ---
 
-## Token Format
-
-### Access Token Claims
-
-```typescript
-interface AccessTokenPayload {
-  sub: string;      // User ID
-  email: string;
-  iat: number;      // Issued at
-  exp: number;      // Expires (15 min)
-  type: 'access';
-}
-```
-
-### Refresh Token Claims
-
-```typescript
-interface RefreshTokenPayload {
-  sub: string;      // User ID
-  jti: string;      // Token ID (for revocation)
-  iat: number;
-  exp: number;      // Expires (30 days)
-  type: 'refresh';
-}
-```
-
----
-
 ## Security Considerations
 
 ### Rate Limiting
 
+Rate limiting for authentication endpoints (login, register, password reset) is handled by **Clerk**. The backend only rate-limits its own endpoints:
+
 | Endpoint | Limit |
 |----------|-------|
-| `/auth/login` | 5 attempts per minute per IP |
-| `/auth/register` | 3 per minute per IP |
-| `/auth/forgot-password` | 3 per hour per email |
-
-### Password Requirements
-
-- Minimum 8 characters
-- Future: strength scoring, breach detection
+| `/auth/ably-token` | 10 per minute per user |
+| `/auth/me` | 30 per minute per user |
+| `/auth/push-token` | 5 per minute per user |
 
 ### Token Storage (Mobile)
 
-- Store refresh token in secure storage (iOS Keychain, Android Keystore)
-- Access token can be in memory only
-- Never store tokens in AsyncStorage
+Clerk manages session tokens automatically. For best security:
+
+- Use Clerk's secure token storage (handles platform-specific secure storage)
+- Access tokens are managed in memory by Clerk SDK
+- Never manually store tokens in AsyncStorage
+- Ably tokens can be stored in memory (short-lived, ~60 min TTL)
 
 ---
 

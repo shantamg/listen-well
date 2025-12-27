@@ -221,6 +221,68 @@ This approach:
 - Prevents drift from user's actual statements
 - Supports clean consent revocation
 
+### Dirty Flag and Concurrent Access
+
+The `StageProgress.isSynthesisDirty` flag indicates when cached synthesis needs regeneration. Concurrent user activity can create race conditions:
+
+```mermaid
+sequenceDiagram
+    participant A as User A
+    participant B as User B
+    participant DB as Database
+    participant AI as AI Service
+
+    A->>DB: Action sets isSynthesisDirty=true
+    B->>DB: Action sets isSynthesisDirty=true
+    A->>DB: Check dirty flag (true)
+    B->>DB: Check dirty flag (true)
+    A->>AI: Request synthesis
+    B->>AI: Request synthesis (redundant!)
+```
+
+**Resolution Strategy: Optimistic Locking with Synthesis Lock**
+
+```typescript
+// Acquire synthesis lock before regeneration
+async function regenerateSynthesisIfNeeded(sessionId: string, userId: string, stage: number) {
+  const lockKey = `synthesis:${sessionId}:${stage}`;
+
+  // Try to acquire lock (expires after 30s to prevent deadlocks)
+  const acquired = await redis.set(lockKey, Date.now(), 'NX', 'EX', 30);
+
+  if (!acquired) {
+    // Another request is regenerating - wait for it
+    await waitForSynthesis(sessionId, stage);
+    return getSynthesisFromCache(sessionId, stage);
+  }
+
+  try {
+    // Double-check dirty flag under lock
+    const progress = await db.stageProgress.findUnique({ where: { sessionId, stage } });
+    if (!progress.isSynthesisDirty) {
+      return getSynthesisFromCache(sessionId, stage);
+    }
+
+    // Regenerate
+    const synthesis = await generateSynthesis(sessionId, userId, stage);
+    await db.stageProgress.update({
+      where: { sessionId, stage },
+      data: { isSynthesisDirty: false, synthesisLastUpdated: new Date() }
+    });
+
+    return synthesis;
+  } finally {
+    await redis.del(lockKey);
+  }
+}
+```
+
+**Key Invariants:**
+- Only one synthesis regeneration runs per session/stage at a time
+- Dirty flag is cleared atomically with cache update
+- Lock timeout prevents deadlocks if process crashes
+- Second requester waits for first to complete (no redundant AI calls)
+
 ## Summary
 
 | Chatbot Approach | BeHeard Approach |

@@ -189,16 +189,109 @@ interface RevokeConsentResponse {
 2. `ConsentedContent.consentActive` set to false
 3. Partner can no longer access this content
 4. Content is **not deleted** - just marked inactive
-5. Derived objects become stale:
-   - CommonGround items based on revoked needs must be excluded/recomputed
-   - Agreements referencing revoked strategy proposals remain but should flag stale input
-   - EmpathyAttempt visibility revoked for partner immediately
+5. Derived objects become stale (see Stale Data Handling below)
 
 ### Important Notes
 
 - Revocation is **immediate** - partner loses access on next request
 - Content already seen by partner cannot be "unseen"
 - Revocation is recorded in audit trail
+
+---
+
+## Stale Data Handling
+
+When consent is revoked, derived objects (CommonGround, Agreements) may reference now-inaccessible content. BeHeard uses a **check-on-read** pattern, not background recomputation.
+
+### Why Check-on-Read (Not Background Jobs)
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Background recomputation** | Data always fresh | Complex job infrastructure, race conditions, delayed consistency |
+| **Check-on-read** | Simple, immediate, deterministic | Slight read-time overhead |
+
+For BeHeard, **deterministic retrieval** is critical (per [Retrieval Contracts](../state-machine/retrieval-contracts.md)). Check-on-read guarantees:
+- Every read reflects current consent state
+- No stale data window between revocation and job completion
+- Simpler debugging and audit
+
+### Implementation Pattern
+
+**CommonGround Retrieval:**
+
+```typescript
+async function getCommonGround(sessionId: string): Promise<CommonGroundItem[]> {
+  // Fetch all common ground candidates
+  const candidates = await db.commonGround.findMany({
+    where: { sessionId },
+    include: {
+      sourceNeedA: { include: { consentRecord: true } },
+      sourceNeedB: { include: { consentRecord: true } },
+    },
+  });
+
+  // Filter out items where underlying consent was revoked
+  return candidates.filter(cg => {
+    const aActive = cg.sourceNeedA?.consentRecord?.revokedAt === null;
+    const bActive = cg.sourceNeedB?.consentRecord?.revokedAt === null;
+    return aActive && bActive;
+  });
+}
+```
+
+**Agreement Stale Flag:**
+
+Agreements are not filtered out (they represent historical decisions) but are flagged:
+
+```typescript
+interface AgreementDTO {
+  id: string;
+  description: string;
+  agreedAt: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
+
+  // Stale flag - computed on read
+  hasStaleInputs: boolean;
+  staleReason?: string;  // "Source strategy consent revoked"
+}
+
+async function getAgreement(agreementId: string): Promise<AgreementDTO> {
+  const agreement = await db.agreement.findUnique({
+    where: { id: agreementId },
+    include: { sourceProposal: { include: { consentRecord: true } } },
+  });
+
+  const hasStaleInputs = agreement.sourceProposal?.consentRecord?.revokedAt !== null;
+
+  return {
+    ...agreement,
+    hasStaleInputs,
+    staleReason: hasStaleInputs ? 'Source strategy consent revoked' : undefined,
+  };
+}
+```
+
+### UI Treatment of Stale Data
+
+| Object Type | Stale Behavior |
+|-------------|----------------|
+| **CommonGround** | Hidden from partner; excluded from Stage 4 inputs |
+| **Agreement** | Shown with visual indicator; "(based on content no longer shared)" |
+| **EmpathyAttempt** | Hidden from partner immediately |
+| **StrategyProposal** | Hidden from pool; existing rankings preserved but flagged |
+
+### Performance Consideration
+
+The check-on-read pattern adds a JOIN per query. This is acceptable because:
+- Session queries are low-volume (not high-traffic API)
+- Consent tables are small (dozens of rows per session, not millions)
+- Database indexes on `consentRecordId` and `revokedAt` make checks efficient
+
+```sql
+-- Ensure efficient consent checks
+CREATE INDEX idx_consent_record_revoked ON "ConsentRecord" ("id", "revokedAt");
+CREATE INDEX idx_consented_content_active ON "ConsentedContent" ("consentRecordId", "consentActive");
+```
 
 ---
 

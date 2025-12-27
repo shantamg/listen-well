@@ -95,4 +95,130 @@ All user-facing prompts must:
 
 ---
 
+## Conversational Continuity ("Ghost in the Machine" Prevention)
+
+Because the Large Model receives only a pre-assembled context bundle (not full conversation history), there is a risk of losing conversational thread and tone consistency. This is addressed through:
+
+### 1. Turn Buffer in Context Bundle
+
+Each turn includes a **conversation context** field with recent messages:
+
+```typescript
+interface ContextBundle {
+  // ... other fields
+  conversation_context: {
+    recent_turns: Array<{
+      role: 'user' | 'assistant';
+      content: string;
+      timestamp: string;
+    }>;
+    turn_count: number;
+    session_duration_minutes: number;
+  };
+}
+```
+
+**Buffer Size by Stage:**
+
+| Stage | Recent Turns Included | Rationale |
+|-------|----------------------|-----------|
+| Stage 1 | Last 6 turns | Deep witnessing needs thread memory |
+| Stage 2 | Last 4 turns | Empathy building is more structured |
+| Stage 3 | Last 4 turns | Need confirmation is procedural |
+| Stage 4 | Last 8 turns | Negotiation requires full context |
+
+### 2. Emotional Thread Tracking
+
+The context bundle includes emotional trajectory:
+
+```typescript
+emotional_thread: {
+  initial_intensity: number;      // Start of session
+  current_intensity: number;      // Latest reading
+  trend: 'escalating' | 'stable' | 'de-escalating';
+  notable_shifts: Array<{
+    turn: number;
+    from: number;
+    to: number;
+    trigger_summary: string;      // What caused the shift
+  }>;
+}
+```
+
+This allows the AI to maintain emotional attunement even without full history.
+
+### 3. Personality Anchor in System Prompt
+
+Every system prompt includes a **personality anchor** that reinforces consistent tone:
+
+```
+PERSONALITY ANCHOR:
+- Warm but not saccharine
+- Direct but not blunt
+- Curious but not intrusive
+- Patient with repetition (users often need to say things multiple times)
+- Never rushed, never impatient
+- Use the users name occasionally, but not in every response
+- Match the users energy level (calm when they are calm, present when they are activated)
+```
+
+### 4. Continuity Signals in Responses
+
+Prompts instruct the AI to include natural continuity markers:
+
+```
+CONTINUITY TECHNIQUES:
+- Reference what the user just said: "You mentioned feeling overlooked..."
+- Acknowledge time passing: "Weve been talking for a while now..."
+- Note progress: "Earlier you seemed more guarded about this..."
+- Use consistent metaphors once introduced
+```
+
+### 5. Session Summary Injection
+
+For sessions longer than 30 minutes, a **session summary** is included:
+
+```typescript
+session_summary?: {
+  key_themes: string[];           // Max 3
+  emotional_journey: string;      // One sentence
+  current_focus: string;          // What we are working on now
+  user_stated_goals: string[];    // What user said they want from this
+}
+```
+
+### 6. Avoiding Disconnected Form Feeling
+
+The AI is explicitly instructed to avoid patterns that feel mechanical:
+
+```
+AVOID THESE PATTERNS (they feel disconnected):
+- Starting every response with "I hear you..."
+- Generic validation like "That sounds hard"
+- Repeating the users words exactly (paraphrase instead)
+- Asking the same question twice in a session
+- Forgetting something the user explicitly stated earlier (check conversation_context)
+```
+
+### Monitoring Continuity
+
+Log when users express frustration with AI memory:
+
+```typescript
+// Detect continuity failure signals
+const CONTINUITY_FAILURE_PATTERNS = [
+  /i (just|already) (said|told you)/i,
+  /weren.?t you listening/i,
+  /we talked about this/i,
+  /you forgot/i,
+];
+
+if (CONTINUITY_FAILURE_PATTERNS.some(p => p.test(userMessage))) {
+  metrics.increment('ai.continuity_failure_signal');
+  // Trigger review of context bundle size/content
+}
+```
+
+---
+
 [Back to Backend](../index.md)
