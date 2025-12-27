@@ -32,5 +32,8 @@
     "docs:build": "npm --workspace docs-site run build",
     "docs:deploy": "npm --workspace docs-site run vercel:deploy",
     "docs:bundle": "node scripts/bundle-planning-docs.js"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^12.5.0"
   }
 }

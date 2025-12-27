@@ -1,0 +1,304 @@
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+
+const AUTH_TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+/**
+ * User type for authentication
+ */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+}
+
+/**
+ * Authentication state
+ */
+export interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  pendingVerification: boolean;
+}
+
+/**
+ * Authentication context value
+ */
+export interface AuthContextValue extends AuthState {
+  signIn: (email: string) => Promise<void>;
+  verifySignInCode: (code: string) => Promise<void>;
+  signUp: (email: string, name: string) => Promise<void>;
+  verifySignUpCode: (code: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  getToken: () => Promise<string | null>;
+}
+
+// Create context with undefined default
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+/**
+ * Hook to access authentication state and methods
+ * Must be used within an AuthProvider
+ */
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+/**
+ * Hook for protected route navigation
+ * Redirects unauthenticated users to login
+ */
+export function useProtectedRoute() {
+  const { isLoading, isAuthenticated } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const navigationState = useRootNavigationState();
+
+  useEffect(() => {
+    // Wait for both auth and navigation to be loaded
+    if (isLoading || !navigationState?.key) return;
+
+    const inPublicGroup = segments[0] === '(public)';
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && inAuthGroup) {
+      // User is not signed in but trying to access protected route
+      router.replace('/login');
+    } else if (isAuthenticated && inPublicGroup) {
+      // User is signed in but on public route, redirect to home
+      router.replace('/');
+    }
+  }, [isAuthenticated, segments, isLoading, navigationState?.key, router]);
+}
+
+/**
+ * Hook to provide authentication state (for AuthProvider)
+ * This is the implementation that manages auth state
+ *
+ * Uses email code verification flow compatible with Clerk.
+ * In development without Clerk, accepts any 6-digit code.
+ */
+export function useAuthProvider(): AuthContextValue {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    isLoading: true,
+    isAuthenticated: false,
+    pendingVerification: false,
+  });
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [pendingName, setPendingName] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+      const userJson = await SecureStore.getItemAsync(USER_KEY);
+
+      if (token && userJson) {
+        const storedUser = JSON.parse(userJson) as User;
+        setState({
+          user: storedUser,
+          isLoading: false,
+          isAuthenticated: true,
+          pendingVerification: false,
+        });
+      } else {
+        setState({
+          user: null,
+          isLoading: false,
+          isAuthenticated: false,
+          pendingVerification: false,
+        });
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+      setState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        pendingVerification: false,
+      });
+    }
+  }, []);
+
+  const signIn = useCallback(async (email: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      // In production, this would call Clerk to send email code
+      // For now, simulate sending code
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      console.log(`[Auth] Verification code sent to ${email}`);
+      setPendingEmail(email);
+      setIsSignUp(false);
+
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        pendingVerification: true,
+      }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, []);
+
+  const verifySignInCode = useCallback(async (code: string) => {
+    if (!pendingEmail) {
+      throw new Error('No pending email verification');
+    }
+
+    setState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      // In production, verify with Clerk
+      // For dev, accept any 6-digit code
+      if (code.length !== 6) {
+        throw new Error('Invalid verification code');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const user: User = {
+        id: `user_${Date.now()}`,
+        email: pendingEmail,
+        name: pendingEmail.split('@')[0],
+      };
+
+      const token = `token_${Date.now()}`;
+
+      await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+
+      setState({
+        user,
+        isLoading: false,
+        isAuthenticated: true,
+        pendingVerification: false,
+      });
+
+      setPendingEmail(null);
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, [pendingEmail]);
+
+  const signUp = useCallback(async (email: string, name: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      // In production, this would call Clerk to create account and send code
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      console.log(`[Auth] Signup verification code sent to ${email}`);
+      setPendingEmail(email);
+      setPendingName(name);
+      setIsSignUp(true);
+
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        pendingVerification: true,
+      }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, []);
+
+  const verifySignUpCode = useCallback(async (code: string) => {
+    if (!pendingEmail) {
+      throw new Error('No pending email verification');
+    }
+
+    setState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      // In production, verify with Clerk
+      if (code.length !== 6) {
+        throw new Error('Invalid verification code');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const user: User = {
+        id: `user_${Date.now()}`,
+        email: pendingEmail,
+        name: pendingName || pendingEmail.split('@')[0],
+        firstName: pendingName?.split(' ')[0],
+        lastName: pendingName?.split(' ').slice(1).join(' ') || undefined,
+      };
+
+      const token = `token_${Date.now()}`;
+
+      await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+
+      setState({
+        user,
+        isLoading: false,
+        isAuthenticated: true,
+        pendingVerification: false,
+      });
+
+      setPendingEmail(null);
+      setPendingName(null);
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, [pendingEmail, pendingName]);
+
+  const signOut = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
+
+      setState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        pendingVerification: false,
+      });
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  }, []);
+
+  const getToken = useCallback(async () => {
+    return SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+  }, []);
+
+  return {
+    ...state,
+    signIn,
+    verifySignInCode,
+    signUp,
+    verifySignUpCode,
+    signOut,
+    getToken,
+  };
+}
+
+// Export the context for AuthProvider
+export { AuthContext };

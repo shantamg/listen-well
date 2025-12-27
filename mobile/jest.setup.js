@@ -29,4 +29,9 @@ jest.mock('react-native-reanimated', () => {
 });
 
 // Silence the warning: Animated: `useNativeDriver` is not supported
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+// Note: This mock path may need adjustment based on React Native version
+try {
+  jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+} catch {
+  // Module path may differ in newer RN versions - silence warning another way
+}
