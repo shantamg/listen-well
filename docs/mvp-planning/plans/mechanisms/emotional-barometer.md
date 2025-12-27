@@ -150,10 +150,13 @@ When intensity is high, the AI offers:
 |--------|-------------|
 | Keep sharing | Continue the conversation—writing can be cathartic |
 | Breathing exercise | Guided 4-7-8 breathing or similar |
+| Grounding exercise | 5-4-3-2-1 senses check with required text input at each step |
 | Body scan | Brief check-in with physical sensations |
 | Take a break | End session and return later |
 
 Note: "Private journaling" is no longer a separate option—the user is already in a text conversation, so "keep sharing" serves this purpose.
+
+**Grounding exercise design:** Each step of the 5-4-3-2-1 grounding exercise requires the user to type their observations before proceeding (e.g., naming 5 things they can see). This ensures genuine engagement rather than clicking through. The input is not saved—the act of noticing and naming is what matters.
 
 ## Display Options
 

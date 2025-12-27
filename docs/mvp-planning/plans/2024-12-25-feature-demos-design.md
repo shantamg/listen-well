@@ -90,12 +90,14 @@ All demos import this shared file for consistency.
 1. Emotional barometer at level 8-9 triggers modal
 2. Modal shows three options:
    - "Breathing exercise" → Guided 4-7-8 breathing animation
-   - "Grounding exercise" → 5-4-3-2-1 senses prompt
+   - "Grounding exercise" → 5-4-3-2-1 senses with required text input at each step (see note)
    - "Journal it out" → Private text area to vent
 3. After completing exercise, barometer resets
 4. User continues conversation
 
-**Demonstrates:** Emotional regulation tools, not just gatekeeping
+**Grounding Exercise Note:** Each step of the 5-4-3-2-1 grounding exercise requires the user to type their observations (e.g., "the desk, my phone, a plant...") before proceeding. The Next button is disabled until they enter text. This ensures genuine engagement rather than clicking through. Input is not saved.
+
+**Demonstrates:** Emotional regulation tools, not just gatekeeping, active user participation
 
 ---
 

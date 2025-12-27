@@ -172,6 +172,29 @@
             background: var(--success);
         }
 
+        .grounding-input {
+            width: 100%;
+            min-height: 60px;
+            padding: 12px;
+            margin-top: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .grounding-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .grounding-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
         .journal-container {
             text-align: left;
         }
@@ -529,6 +552,9 @@
                 if (prevStep) {
                     prevStep.classList.remove('active');
                     prevStep.classList.add('completed');
+                    // Clear the input value (we don't save it)
+                    const input = prevStep.querySelector('.grounding-input');
+                    if (input) input.value = '';
                 }
             }
 
@@ -542,12 +568,25 @@
                         <div class="grounding-step-title">${data.sense}</div>
                     </div>
                     <div class="grounding-step-prompt">${data.prompt}</div>
+                    <textarea class="grounding-input" placeholder="Type your answer here..." oninput="validateGroundingInput()"></textarea>
                 `;
                 stepsContainer.appendChild(step);
                 btn.textContent = window.groundingStep < window.groundingData.length - 1 ? 'Next' : 'Complete';
+                btn.disabled = true;
                 window.groundingStep++;
+                // Focus the input
+                step.querySelector('.grounding-input').focus();
             } else {
                 completeExercise();
+            }
+        }
+
+        function validateGroundingInput() {
+            const activeStep = document.querySelector('.grounding-step.active');
+            const btn = document.getElementById('nextStepBtn');
+            if (activeStep) {
+                const input = activeStep.querySelector('.grounding-input');
+                btn.disabled = !input || input.value.trim().length === 0;
             }
         }
 
