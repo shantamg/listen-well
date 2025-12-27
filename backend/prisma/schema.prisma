@@ -1,18 +1,595 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  directUrl    = env("DIRECT_URL")
+  extensions   = [vector]
 }
 
-// Add your models here
-// Example:
-// model User {
-//   id        String   @id @default(cuid())
-//   email     String   @unique
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+// ============================================================================
+// Core Models
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique // Clerk authentication user ID
+  email     String   @unique
+  name      String?
+  pushToken String?  // Expo push token for realtime fallbacks
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  relationships       RelationshipMember[]
+  vessels             UserVessel[]
+  stageProgress       StageProgress[]
+  messages            Message[]
+  consentsGiven       ConsentRecord[]            @relation("ConsentsGiven")
+  consentsRequested   ConsentRecord[]            @relation("ConsentsRequested")
+  consentedContent    ConsentedContent[]
+  empathyDrafts       EmpathyDraft[]
+  empathyAttempts     EmpathyAttempt[]
+  empathyValidations  EmpathyValidation[]
+  strategyProposals   StrategyProposal[]
+  strategyRankings    StrategyRanking[]
+  exerciseCompletions EmotionalExerciseCompletion[]
+  invitationsSent     Invitation[]               @relation("InvitedBy")
+}
+
+model Relationship {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Members (exactly 2 for BeHeard)
+  members  RelationshipMember[]
+  sessions Session[]
+}
+
+model RelationshipMember {
+  id             String       @id @default(cuid())
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  relationshipId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  joinedAt       DateTime     @default(now())
+  role           String       @default("member")
+
+  @@unique([relationshipId, userId])
+  @@index([userId])
+}
+
+// ============================================================================
+// Session
+// ============================================================================
+
+model Session {
+  id             String        @id @default(cuid())
+  relationship   Relationship  @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  relationshipId String
+  status         SessionStatus @default(CREATED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  resolvedAt     DateTime?
+
+  // Related entities
+  messages             Message[]
+  sharedVessel         SharedVessel?
+  stageProgress        StageProgress[]
+  userVessels          UserVessel[]
+  empathyDrafts        EmpathyDraft[]
+  empathyAttempts      EmpathyAttempt[]
+  empathyValidations   EmpathyValidation[]
+  strategyProposals    StrategyProposal[]
+  strategyRankings     StrategyRanking[]
+  consentRecords       ConsentRecord[]
+  exerciseCompletions  EmotionalExerciseCompletion[]
+  invitations          Invitation[]
+
+  @@index([relationshipId])
+  @@index([status])
+}
+
+enum SessionStatus {
+  CREATED   // Invitation sent
+  INVITED   // Partner invited, awaiting join
+  ACTIVE    // Both users engaged
+  PAUSED    // Cooling period
+  WAITING   // One user ahead, waiting for other
+  RESOLVED  // Process completed
+  ABANDONED // Timeout or withdrawal
+}
+
+// ============================================================================
+// Stage Progress
+// ============================================================================
+
+model StageProgress {
+  id          String      @id @default(cuid())
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  stage       Int
+  status      StageStatus @default(IN_PROGRESS)
+  startedAt   DateTime    @default(now())
+  completedAt DateTime?
+
+  // Gate satisfaction tracking
+  gatesSatisfied Json? // Stage-specific gate conditions
+
+  // Synthesis cache invalidation
+  isSynthesisDirty     Boolean   @default(true)
+  synthesisLastUpdated DateTime?
+
+  @@unique([sessionId, userId, stage])
+  @@index([sessionId])
+  @@index([userId])
+}
+
+enum StageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  GATE_PENDING // Requirements met, awaiting partner
+  COMPLETED
+}
+
+// ============================================================================
+// User Vessel (Private Data)
+// ============================================================================
+
+model UserVessel {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Private content
+  events            UserEvent[]
+  emotionalReadings EmotionalReading[]
+  identifiedNeeds   IdentifiedNeed[]
+  boundaries        Boundary[]
+  documents         UserDocument[]
+
+  // Embedding for semantic search within user's own content
+  embedding Unsupported("vector(1536)")?
+
+  @@unique([userId, sessionId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+model UserEvent {
+  id           String      @id @default(cuid())
+  vessel       UserVessel  @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vesselId     String
+  description  String      @db.Text
+  attributedTo Attribution
+  emotions     String[]
+  timestamp    DateTime    @default(now())
+
+  // Embedding for semantic search
+  embedding Unsupported("vector(1536)")?
+
+  @@index([vesselId, timestamp])
+}
+
+enum Attribution {
+  SELF
+  OTHER
+  MUTUAL
+  EXTERNAL
+}
+
+model EmotionalReading {
+  id        String     @id @default(cuid())
+  vessel    UserVessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vesselId  String
+  intensity Int        // 1-10 scale
+  context   String?    @db.Text
+  stage     Int        // Stage when reading was taken
+  timestamp DateTime   @default(now())
+
+  @@index([vesselId, timestamp])
+}
+
+model IdentifiedNeed {
+  id           String       @id @default(cuid())
+  vessel       UserVessel   @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vesselId     String
+  need         String       // From universal needs taxonomy
+  category     NeedCategory
+  evidence     String[]     // Quotes/references supporting this need
+  confirmed    Boolean      @default(false) // User confirmed this need
+  aiConfidence Float        // AI confidence in identification
+  createdAt    DateTime     @default(now())
+
+  // Link to shared version if consented
+  consentedContent ConsentedContent?
+
+  @@index([vesselId])
+}
+
+enum NeedCategory {
+  SAFETY
+  CONNECTION
+  AUTONOMY
+  RECOGNITION
+  MEANING
+  FAIRNESS
+}
+
+model Boundary {
+  id            String     @id @default(cuid())
+  vessel        UserVessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vesselId      String
+  description   String     @db.Text
+  nonNegotiable Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+
+  @@index([vesselId])
+}
+
+model UserDocument {
+  id        String     @id @default(cuid())
+  vessel    UserVessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vesselId  String
+  title     String
+  content   String     @db.Text
+  type      String     // e.g., "reflection", "journal", "note"
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([vesselId])
+}
+
+// ============================================================================
+// Shared Vessel (Consensual Data)
+// ============================================================================
+
+model SharedVessel {
+  id        String   @id @default(cuid())
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Shared content
+  consentedContent ConsentedContent[]
+  commonGround     CommonGround[]
+  agreements       Agreement[]
+}
+
+model ConsentedContent {
+  id                 String          @id @default(cuid())
+  sharedVessel       SharedVessel    @relation(fields: [sharedVesselId], references: [id], onDelete: Cascade)
+  sharedVesselId     String
+  sourceUser         User            @relation(fields: [sourceUserId], references: [id], onDelete: Cascade)
+  sourceUserId       String
+  originalNeed       IdentifiedNeed? @relation(fields: [originalNeedId], references: [id], onDelete: SetNull)
+  originalNeedId     String?         @unique
+  transformedContent String          @db.Text // Heat removed, need preserved
+  consentedAt        DateTime        @default(now())
+  consentActive      Boolean         @default(true)
+  revokedAt          DateTime?
+
+  // Link to consent record for audit
+  consentRecord   ConsentRecord @relation(fields: [consentRecordId], references: [id])
+  consentRecordId String
+
+  @@index([sharedVesselId])
+  @@index([sourceUserId])
+}
+
+model CommonGround {
+  id             String       @id @default(cuid())
+  sharedVessel   SharedVessel @relation(fields: [sharedVesselId], references: [id], onDelete: Cascade)
+  sharedVesselId String
+  need           String
+  category       NeedCategory
+  confirmedByA   Boolean      @default(false)
+  confirmedByB   Boolean      @default(false)
+  confirmedAt    DateTime?
+
+  @@index([sharedVesselId])
+}
+
+model Agreement {
+  id             String          @id @default(cuid())
+  sharedVessel   SharedVessel    @relation(fields: [sharedVesselId], references: [id], onDelete: Cascade)
+  sharedVesselId String
+  description    String          @db.Text
+  type           AgreementType
+  status         AgreementStatus @default(PROPOSED)
+  agreedByA      Boolean         @default(false)
+  agreedByB      Boolean         @default(false)
+  agreedAt       DateTime?
+  followUpDate   DateTime?
+  completedAt    DateTime?
+  proposal       StrategyProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  proposalId     String?
+
+  @@index([sharedVesselId])
+}
+
+enum AgreementType {
+  MICRO_EXPERIMENT // Small, reversible action
+  COMMITMENT       // Longer-term agreement
+  CHECK_IN         // Scheduled follow-up
+}
+
+enum AgreementStatus {
+  PROPOSED
+  AGREED
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+// ============================================================================
+// Consent Management
+// ============================================================================
+
+model ConsentRecord {
+  id                String              @id @default(cuid())
+  user              User                @relation("ConsentsGiven", fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  session           Session?            @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId         String?
+  targetType        ConsentContentType
+  targetId          String?             // e.g., empathy draft id, need id, boundary id
+  requestedBy       User                @relation("ConsentsRequested", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  requestedByUserId String
+  decision          ConsentDecision?
+  decidedAt         DateTime?
+  revokedAt         DateTime?
+  metadata          Json?               // Additional context
+  createdAt         DateTime            @default(now())
+
+  // Link to resulting shared content
+  consentedContent ConsentedContent[]
+  empathyAttempt   EmpathyAttempt[]
+  strategyProposal StrategyProposal[]
+
+  @@index([userId, sessionId, targetType, decidedAt])
+}
+
+enum ConsentContentType {
+  IDENTIFIED_NEED
+  EVENT_SUMMARY
+  EMOTIONAL_PATTERN
+  BOUNDARY
+  EMPATHY_DRAFT
+  EMPATHY_ATTEMPT
+  STRATEGY_PROPOSAL
+}
+
+enum ConsentDecision {
+  GRANTED
+  DENIED
+  REVOKED
+}
+
+// ============================================================================
+// Messages
+// ============================================================================
+
+model Message {
+  id        String      @id @default(cuid())
+  session   Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  sender    User?       @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  senderId  String?     // null for AI messages
+  role      MessageRole
+  content   String      @db.Text
+  stage     Int
+  timestamp DateTime    @default(now())
+
+  // Embedding for semantic search
+  embedding Unsupported("vector(1536)")?
+
+  // Extracted memory references
+  extractedNeeds    String[]
+  extractedEmotions String[]
+
+  @@index([sessionId, timestamp])
+  @@index([senderId])
+}
+
+enum MessageRole {
+  USER
+  AI
+  SYSTEM
+}
+
+// ============================================================================
+// Stage 2: Empathy Attempts
+// ============================================================================
+
+model EmpathyDraft {
+  id           String   @id @default(cuid())
+  session      Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  content      String   @db.Text
+  readyToShare Boolean  @default(false)
+  version      Int      @default(1)
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  attempts EmpathyAttempt[]
+
+  @@unique([sessionId, userId])
+}
+
+model EmpathyAttempt {
+  id              String        @id @default(cuid())
+  draft           EmpathyDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draftId         String
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId       String
+  sourceUser      User          @relation(fields: [sourceUserId], references: [id], onDelete: Cascade)
+  sourceUserId    String
+  content         String        @db.Text
+  sharedAt        DateTime      @default(now())
+  consentRecord   ConsentRecord? @relation(fields: [consentRecordId], references: [id], onDelete: SetNull)
+  consentRecordId String?
+
+  validations EmpathyValidation[]
+
+  @@index([sessionId, sourceUserId])
+}
+
+model EmpathyValidation {
+  id             String         @id @default(cuid())
+  attempt        EmpathyAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attemptId      String
+  session        Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId      String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String         // Recipient validating partner attempt
+  validated      Boolean
+  feedback       String?        @db.Text
+  feedbackShared Boolean        @default(false)
+  validatedAt    DateTime?      @default(now())
+
+  @@unique([attemptId, userId])
+}
+
+// ============================================================================
+// Stage 4: Strategies and Rankings
+// ============================================================================
+
+model StrategyProposal {
+  id               String          @id @default(cuid())
+  session          Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId        String
+  createdBy        User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUserId  String?
+  description      String          @db.Text
+  needsAddressed   String[]
+  duration         String?
+  measureOfSuccess String?
+  source           StrategySource  @default(USER_SUBMITTED)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  consentRecord    ConsentRecord?  @relation(fields: [consentRecordId], references: [id], onDelete: SetNull)
+  consentRecordId  String?
+
+  // Note: Rankings reference proposals via rankedIds (String[]), not a direct relation
+  agreements Agreement[]
+
+  @@index([sessionId])
+}
+
+enum StrategySource {
+  USER_SUBMITTED
+  AI_SUGGESTED
+  CURATED
+}
+
+model StrategyRanking {
+  id          String   @id @default(cuid())
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  rankedIds   String[] // Ordered StrategyProposal ids
+  submittedAt DateTime @default(now())
+
+  @@unique([sessionId, userId])
+}
+
+// ============================================================================
+// Emotional Regulation
+// ============================================================================
+
+model EmotionalExerciseCompletion {
+  id              String       @id @default(cuid())
+  session         Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId       String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  type            ExerciseType
+  completedAt     DateTime     @default(now())
+  intensityBefore Int?
+  intensityAfter  Int?
+
+  @@index([sessionId, userId, completedAt])
+}
+
+enum ExerciseType {
+  BREATHING_EXERCISE
+  BODY_SCAN
+  GROUNDING
+  PAUSE_SESSION
+}
+
+// ============================================================================
+// Global Library (Stage 4 Suggestions)
+// ============================================================================
+
+model GlobalLibraryItem {
+  id          String              @id @default(cuid())
+  title       String
+  description String              @db.Text
+  category    String              // e.g., "communication", "quality-time", "conflict-resolution"
+  source      GlobalLibrarySource
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Embedding for semantic search
+  embedding Unsupported("vector(1536)")?
+
+  // For user-contributed items only
+  contributedBy       String?   // User ID if contributed (anonymized in results)
+  contributionConsent DateTime? // When user consented to anonymized contribution
+
+  @@index([category])
+  @@index([source])
+}
+
+enum GlobalLibrarySource {
+  CURATED     // Admin/expert authored
+  CONTRIBUTED // User-contributed with explicit consent
+}
+
+// ============================================================================
+// Invitations
+// ============================================================================
+
+model Invitation {
+  id            String           @id @default(cuid())
+  session       Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     String
+  invitedBy     User             @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedById   String
+  email         String?
+  phone         String?
+  name          String?
+  status        InvitationStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  declinedAt    DateTime?
+  declineReason String?
+
+  @@index([sessionId])
+  @@index([email])
+  @@index([status])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}

@@ -1,0 +1,261 @@
+import {
+  PrismaClient,
+  Prisma,
+  SessionStatus,
+  StageStatus,
+  MessageRole,
+  Attribution,
+  NeedCategory,
+  ConsentDecision,
+  ConsentContentType,
+  AgreementType,
+  AgreementStatus,
+  GlobalLibrarySource,
+  StrategySource,
+  ExerciseType,
+} from '@prisma/client';
+
+/**
+ * Prisma Schema Tests
+ *
+ * These tests validate that the Prisma schema is correctly configured
+ * and the client types are properly generated.
+ *
+ * Note: Database connection tests are skipped when DATABASE_URL is not available.
+ */
+describe('Prisma Schema', () => {
+  let prisma: PrismaClient;
+
+  beforeAll(() => {
+    prisma = new PrismaClient();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  describe('Schema Type Validation', () => {
+    it('exports all expected models', () => {
+      // Verify prisma client has all expected model delegates
+      expect(prisma.user).toBeDefined();
+      expect(prisma.relationship).toBeDefined();
+      expect(prisma.relationshipMember).toBeDefined();
+      expect(prisma.session).toBeDefined();
+      expect(prisma.stageProgress).toBeDefined();
+      expect(prisma.userVessel).toBeDefined();
+      expect(prisma.userEvent).toBeDefined();
+      expect(prisma.emotionalReading).toBeDefined();
+      expect(prisma.identifiedNeed).toBeDefined();
+      expect(prisma.boundary).toBeDefined();
+      expect(prisma.userDocument).toBeDefined();
+      expect(prisma.sharedVessel).toBeDefined();
+      expect(prisma.consentedContent).toBeDefined();
+      expect(prisma.commonGround).toBeDefined();
+      expect(prisma.agreement).toBeDefined();
+      expect(prisma.consentRecord).toBeDefined();
+      expect(prisma.message).toBeDefined();
+      expect(prisma.empathyDraft).toBeDefined();
+      expect(prisma.empathyAttempt).toBeDefined();
+      expect(prisma.empathyValidation).toBeDefined();
+      expect(prisma.strategyProposal).toBeDefined();
+      expect(prisma.strategyRanking).toBeDefined();
+      expect(prisma.emotionalExerciseCompletion).toBeDefined();
+      expect(prisma.globalLibraryItem).toBeDefined();
+    });
+
+    it('exports SessionStatus enum with correct values', () => {
+      expect(SessionStatus.CREATED).toBe('CREATED');
+      expect(SessionStatus.INVITED).toBe('INVITED');
+      expect(SessionStatus.ACTIVE).toBe('ACTIVE');
+      expect(SessionStatus.PAUSED).toBe('PAUSED');
+      expect(SessionStatus.WAITING).toBe('WAITING');
+      expect(SessionStatus.RESOLVED).toBe('RESOLVED');
+      expect(SessionStatus.ABANDONED).toBe('ABANDONED');
+    });
+
+    it('exports StageStatus enum with correct values', () => {
+      expect(StageStatus.NOT_STARTED).toBe('NOT_STARTED');
+      expect(StageStatus.IN_PROGRESS).toBe('IN_PROGRESS');
+      expect(StageStatus.GATE_PENDING).toBe('GATE_PENDING');
+      expect(StageStatus.COMPLETED).toBe('COMPLETED');
+    });
+
+    it('exports MessageRole enum with correct values', () => {
+      expect(MessageRole.USER).toBe('USER');
+      expect(MessageRole.AI).toBe('AI');
+      expect(MessageRole.SYSTEM).toBe('SYSTEM');
+    });
+
+    it('exports Attribution enum with correct values', () => {
+      expect(Attribution.SELF).toBe('SELF');
+      expect(Attribution.OTHER).toBe('OTHER');
+      expect(Attribution.MUTUAL).toBe('MUTUAL');
+      expect(Attribution.EXTERNAL).toBe('EXTERNAL');
+    });
+
+    it('exports NeedCategory enum with correct values', () => {
+      expect(NeedCategory.SAFETY).toBe('SAFETY');
+      expect(NeedCategory.CONNECTION).toBe('CONNECTION');
+      expect(NeedCategory.AUTONOMY).toBe('AUTONOMY');
+      expect(NeedCategory.RECOGNITION).toBe('RECOGNITION');
+      expect(NeedCategory.MEANING).toBe('MEANING');
+      expect(NeedCategory.FAIRNESS).toBe('FAIRNESS');
+    });
+
+    it('exports ConsentDecision enum with correct values', () => {
+      expect(ConsentDecision.GRANTED).toBe('GRANTED');
+      expect(ConsentDecision.DENIED).toBe('DENIED');
+      expect(ConsentDecision.REVOKED).toBe('REVOKED');
+    });
+
+    it('exports ConsentContentType enum with correct values', () => {
+      expect(ConsentContentType.IDENTIFIED_NEED).toBe('IDENTIFIED_NEED');
+      expect(ConsentContentType.EVENT_SUMMARY).toBe('EVENT_SUMMARY');
+      expect(ConsentContentType.EMOTIONAL_PATTERN).toBe('EMOTIONAL_PATTERN');
+      expect(ConsentContentType.BOUNDARY).toBe('BOUNDARY');
+      expect(ConsentContentType.EMPATHY_DRAFT).toBe('EMPATHY_DRAFT');
+      expect(ConsentContentType.EMPATHY_ATTEMPT).toBe('EMPATHY_ATTEMPT');
+      expect(ConsentContentType.STRATEGY_PROPOSAL).toBe('STRATEGY_PROPOSAL');
+    });
+
+    it('exports AgreementType enum with correct values', () => {
+      expect(AgreementType.MICRO_EXPERIMENT).toBe('MICRO_EXPERIMENT');
+      expect(AgreementType.COMMITMENT).toBe('COMMITMENT');
+      expect(AgreementType.CHECK_IN).toBe('CHECK_IN');
+    });
+
+    it('exports AgreementStatus enum with correct values', () => {
+      expect(AgreementStatus.PROPOSED).toBe('PROPOSED');
+      expect(AgreementStatus.AGREED).toBe('AGREED');
+      expect(AgreementStatus.IN_PROGRESS).toBe('IN_PROGRESS');
+      expect(AgreementStatus.COMPLETED).toBe('COMPLETED');
+      expect(AgreementStatus.ABANDONED).toBe('ABANDONED');
+    });
+
+    it('exports GlobalLibrarySource enum with correct values', () => {
+      expect(GlobalLibrarySource.CURATED).toBe('CURATED');
+      expect(GlobalLibrarySource.CONTRIBUTED).toBe('CONTRIBUTED');
+    });
+
+    it('exports StrategySource enum with correct values', () => {
+      expect(StrategySource.USER_SUBMITTED).toBe('USER_SUBMITTED');
+      expect(StrategySource.AI_SUGGESTED).toBe('AI_SUGGESTED');
+      expect(StrategySource.CURATED).toBe('CURATED');
+    });
+
+    it('exports ExerciseType enum with correct values', () => {
+      expect(ExerciseType.BREATHING_EXERCISE).toBe('BREATHING_EXERCISE');
+      expect(ExerciseType.BODY_SCAN).toBe('BODY_SCAN');
+      expect(ExerciseType.GROUNDING).toBe('GROUNDING');
+      expect(ExerciseType.PAUSE_SESSION).toBe('PAUSE_SESSION');
+    });
+  });
+
+  describe('Type-safe Input Validation', () => {
+    it('allows creating valid User input', () => {
+      const userInput: Prisma.UserCreateInput = {
+        email: 'test@example.com',
+        name: 'Test User',
+      };
+      expect(userInput.email).toBe('test@example.com');
+    });
+
+    it('allows creating valid Session input', () => {
+      const sessionInput: Prisma.SessionCreateInput = {
+        relationship: {
+          create: {},
+        },
+        status: SessionStatus.CREATED,
+      };
+      expect(sessionInput.status).toBe('CREATED');
+    });
+
+    it('allows creating valid Message input', () => {
+      const messageInput: Prisma.MessageCreateInput = {
+        session: { connect: { id: 'session-id' } },
+        role: MessageRole.USER,
+        content: 'Hello world',
+        stage: 1,
+      };
+      expect(messageInput.role).toBe('USER');
+      expect(messageInput.stage).toBe(1);
+    });
+
+    it('allows creating valid StageProgress input', () => {
+      const progressInput: Prisma.StageProgressCreateInput = {
+        session: { connect: { id: 'session-id' } },
+        user: { connect: { id: 'user-id' } },
+        stage: 1,
+        status: StageStatus.IN_PROGRESS,
+      };
+      expect(progressInput.status).toBe('IN_PROGRESS');
+    });
+
+    it('allows creating valid ConsentRecord input', () => {
+      const consentInput: Prisma.ConsentRecordCreateInput = {
+        user: { connect: { id: 'user-id' } },
+        targetType: ConsentContentType.IDENTIFIED_NEED,
+        requestedBy: { connect: { id: 'other-user-id' } },
+      };
+      expect(consentInput.targetType).toBe('IDENTIFIED_NEED');
+    });
+
+    it('allows creating valid EmpathyDraft input', () => {
+      const draftInput: Prisma.EmpathyDraftCreateInput = {
+        session: { connect: { id: 'session-id' } },
+        user: { connect: { id: 'user-id' } },
+        content: 'I understand that you feel...',
+        readyToShare: false,
+      };
+      expect(draftInput.content).toBe('I understand that you feel...');
+    });
+
+    it('allows creating valid StrategyProposal input', () => {
+      const proposalInput: Prisma.StrategyProposalCreateInput = {
+        session: { connect: { id: 'session-id' } },
+        description: 'Weekly check-ins',
+        needsAddressed: ['CONNECTION', 'RECOGNITION'],
+        source: StrategySource.USER_SUBMITTED,
+      };
+      expect(proposalInput.source).toBe('USER_SUBMITTED');
+      expect(proposalInput.needsAddressed).toHaveLength(2);
+    });
+
+    it('allows creating valid GlobalLibraryItem input', () => {
+      const libraryInput: Prisma.GlobalLibraryItemCreateInput = {
+        title: 'Weekly Date Night',
+        description: 'Schedule regular quality time together',
+        category: 'quality-time',
+        source: GlobalLibrarySource.CURATED,
+      };
+      expect(libraryInput.source).toBe('CURATED');
+    });
+  });
+
+  // Database connection tests - only run if explicitly enabled with RUN_DB_TESTS=true
+  // This prevents false positives when DATABASE_URL is set but database is not running
+  const dbTestCondition =
+    process.env.RUN_DB_TESTS === 'true' ? describe : describe.skip;
+
+  dbTestCondition('Database Connection', () => {
+    it('connects to database', async () => {
+      const result = await prisma.$queryRaw`SELECT 1 as value`;
+      expect(result).toBeDefined();
+    });
+
+    it('creates and retrieves a user', async () => {
+      const email = `test-${Date.now()}@example.com`;
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: 'Test User',
+        },
+      });
+      expect(user.id).toBeDefined();
+      expect(user.email).toBe(email);
+
+      // Cleanup
+      await prisma.user.delete({ where: { id: user.id } });
+    });
+  });
+});
