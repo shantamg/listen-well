@@ -31,3 +31,43 @@ npm run test    # Tests across all workspaces
 - `mobile/` - Expo React Native app
 - `implementation/` - Executable implementation plans (not deployed)
 - `docs/mvp-planning/` - Planning docs (deployed to docs site)
+
+---
+
+# Claude Flow Configuration
+
+## Parallel Execution
+
+Use Claude Flow for parallel agent execution across workstreams:
+
+```bash
+# Run with auto-parallelization
+claude-flow run --optimize-parallelism
+
+# Start a swarm for complex tasks
+claude-flow swarm "your objective" --claude
+
+# Use hive-mind for coordinated work
+claude-flow hive-mind spawn "command" --claude
+```
+
+## Available Commands
+
+- `claude-flow sparc modes` - List available SPARC modes
+- `claude-flow sparc run <mode> "<task>"` - Execute specific mode
+- `claude-flow sparc tdd "<feature>"` - Run TDD workflow
+- `claude-flow swarm "objective"` - Start coordinated swarm
+
+## Key Principles
+
+- **Batch operations**: Combine related operations in single messages
+- **Parallel agents**: Spawn multiple agents concurrently for independent tasks
+- **Memory coordination**: Agents share context via Claude Flow memory system
+
+## File Organization
+
+Never save to root folder. Use appropriate directories:
+- `src/` or workspace dirs for source code
+- `tests/` or `__tests__/` for test files
+- `docs/` for documentation
+- `implementation/` for implementation plans
