@@ -14,7 +14,7 @@
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
-    "vercel:deploy": "vercel build --prod && vercel deploy --prebuilt --prod --yes"
+    "vercel:deploy": "rm -rf .docusaurus && vercel build --prod && vercel deploy --prebuilt --prod --yes"
   },
   "dependencies": {
     "@docusaurus/core": "3.9.2",

@@ -39,6 +39,7 @@ const config: Config = {
         },
         blog: false,
         pages: false,
+        debug: false, // Disable debug plugin to avoid v4 compatibility issues
         theme: {
           customCss: './src/css/custom.css',
         },
