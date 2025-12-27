@@ -16,67 +16,6 @@ export interface UserDTO {
 }
 
 // ============================================================================
-// Registration
-// ============================================================================
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name?: string;
-  invitationId?: string;
-}
-
-export interface RegisterResponse {
-  user: UserDTO;
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-// ============================================================================
-// Login
-// ============================================================================
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  user: UserDTO;
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-// ============================================================================
-// Token Refresh
-// ============================================================================
-
-export interface RefreshRequest {
-  refreshToken: string;
-}
-
-export interface RefreshResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-// ============================================================================
-// Logout
-// ============================================================================
-
-export interface LogoutRequest {
-  refreshToken: string;
-  allDevices?: boolean;
-}
-
-export interface LogoutResponse {
-  loggedOut: boolean;
-}
-
-// ============================================================================
 // Profile
 // ============================================================================
 

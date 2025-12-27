@@ -87,6 +87,9 @@ export enum ConsentContentType {
   EVENT_SUMMARY = 'EVENT_SUMMARY',
   EMOTIONAL_PATTERN = 'EMOTIONAL_PATTERN',
   BOUNDARY = 'BOUNDARY',
+  EMPATHY_DRAFT = 'EMPATHY_DRAFT',
+  EMPATHY_ATTEMPT = 'EMPATHY_ATTEMPT',
+  STRATEGY_PROPOSAL = 'STRATEGY_PROPOSAL',
 }
 
 // ============================================================================

@@ -11,8 +11,6 @@ import { Stage, StageStatus } from '../enums';
 // ============================================================================
 
 export interface StageProgressDetailDTO {
-  sessionId: string;
-  userId: string;
   stage: Stage;
   status: StageStatus;
   startedAt: string;
@@ -20,9 +18,6 @@ export interface StageProgressDetailDTO {
 
   // Gate satisfaction details
   gates: GateSatisfactionDTO;
-
-  // Partner status (limited info)
-  partnerStatus: PartnerStageStatusDTO;
 }
 
 export interface PartnerStageStatusDTO {
@@ -61,27 +56,25 @@ export interface Stage1Gates {
 
 export interface Stage2Gates {
   stage: Stage.PERSPECTIVE_STRETCH;
-  empathyAttemptCreated: boolean;
-  empathyAttemptConsentedToShare: boolean;
-  receivedPartnerAttempt: boolean;
-  validatedPartnerAttempt: boolean;
-  validatedAt: string | null;
+  empathyDraftReady: boolean;
+  empathyConsented: boolean;
+  partnerConsented: boolean;
+  partnerValidated: boolean;
 }
 
 export interface Stage3Gates {
   stage: Stage.NEED_MAPPING;
-  needsIdentified: boolean;
   needsConfirmed: boolean;
-  needsConsentedToShare: boolean;
-  commonGroundIdentified: boolean;
+  partnerNeedsConfirmed: boolean;
+  commonGroundConfirmed: boolean;
 }
 
 export interface Stage4Gates {
   stage: Stage.STRATEGIC_REPAIR;
-  proposalsCreated: boolean;
-  proposalsRanked: boolean;
-  agreementReached: boolean;
-  followUpScheduled: boolean;
+  strategiesSubmitted: boolean;
+  rankingsSubmitted: boolean;
+  overlapIdentified: boolean;
+  agreementCreated: boolean;
 }
 
 // ============================================================================
@@ -111,6 +104,18 @@ export enum StageBlockedReason {
 }
 
 // ============================================================================
+// Stage Progress (API Responses)
+// ============================================================================
+
+export interface GetProgressResponse {
+  sessionId: string;
+  myProgress: StageProgressDetailDTO;
+  partnerProgress: PartnerStageStatusDTO;
+  canAdvance: boolean;
+  advanceBlockedReason?: StageBlockedReason;
+}
+
+// ============================================================================
 // Stage 0: Curiosity Compact
 // ============================================================================
 
@@ -122,6 +127,14 @@ export interface SignCompactResponse {
   signed: boolean;
   signedAt: string;
   partnerSigned: boolean;
+  canAdvance: boolean;
+}
+
+export interface CompactStatusResponse {
+  mySigned: boolean;
+  mySignedAt: string | null;
+  partnerSigned: boolean;
+  partnerSignedAt: string | null;
   canAdvance: boolean;
 }
 
@@ -139,4 +152,7 @@ export interface ConfirmFeelHeardResponse {
   confirmedAt: string | null;
   canAdvance: boolean;
   partnerCompleted: boolean;
+
+  // Optional final emotional reading (stored when user completes stage)
+  finalEmotionalReading?: number | null;
 }

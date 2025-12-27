@@ -82,6 +82,8 @@ export interface CompleteExerciseRequest {
   sessionId: string;
   exerciseType: EmotionalSupportType;
   completed: boolean;  // false = skipped
+  intensityBefore?: number;
+  intensityAfter?: number;
 }
 
 export interface CompleteExerciseResponse {
@@ -104,4 +106,28 @@ export interface GetMessagesResponse {
   messages: MessageDTO[];
   cursor?: string;
   hasMore: boolean;
+}
+
+// ============================================================================
+// Emotional History
+// ============================================================================
+
+export interface GetEmotionalHistoryRequest {
+  sessionId: string;
+  stage?: Stage;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetEmotionalHistoryResponse {
+  readings: EmotionalReadingDTO[];
+  trend: EmotionalTrend;
+  averageIntensity: number;
+  cursor?: string;
+  hasMore?: boolean;
+}
+
+export interface EmotionalTrend {
+  direction: 'INCREASING' | 'STABLE' | 'DECREASING';
+  changeFromStart: number;
 }

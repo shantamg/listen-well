@@ -18,3 +18,4 @@ export * from './dto/consent';
 export * from './dto/needs';
 export * from './dto/strategy';
 export * from './dto/auth';
+export * from './dto/empathy';

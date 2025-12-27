@@ -118,3 +118,18 @@ export interface AcceptInvitationRequest {
 export interface AcceptInvitationResponse {
   session: SessionSummaryDTO;
 }
+
+export interface DeclineInvitationRequest {
+  reason?: string;
+}
+
+export interface DeclineInvitationResponse {
+  declined: boolean;
+  declinedAt: string;
+}
+
+export interface ResendInvitationResponse {
+  sent: boolean;
+  sentAt: string;
+  expiresAt: string;
+}

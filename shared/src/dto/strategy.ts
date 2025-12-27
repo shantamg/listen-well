@@ -79,21 +79,20 @@ export interface StrategyRanking {
 }
 
 export interface SubmitRankingRequest {
-  rankings: StrategyRanking[];
+  rankedIds: string[];
 }
 
 export interface SubmitRankingResponse {
   submitted: boolean;
+  submittedAt: string;
   partnerSubmitted: boolean;
   awaitingReveal: boolean;
 }
 
-export interface GetOverlapResponse {
+export type RevealOverlapResponse = {
   overlap: StrategyDTO[];
-  myTopPicks: StrategyDTO[];
-  partnerTopPicks: StrategyDTO[];
-  noOverlap: boolean;
-}
+  phase: StrategyPhase;
+};
 
 // ============================================================================
 // Agreements
@@ -102,9 +101,9 @@ export interface GetOverlapResponse {
 export interface AgreementDTO {
   id: string;
   description: string;
-  type: AgreementType;
-  duration: string;
-  measureOfSuccess: string;
+  type?: AgreementType;
+  duration: string | null;
+  measureOfSuccess: string | null;
   status: AgreementStatus;
   agreedByMe: boolean;
   agreedByPartner: boolean;
@@ -114,9 +113,10 @@ export interface AgreementDTO {
 
 export interface CreateAgreementRequest {
   strategyId?: string;
-  customDescription?: string;
-  duration: string;
-  measureOfSuccess: string;
+  description: string;
+  type: AgreementType;
+  duration?: string;
+  measureOfSuccess?: string;
   followUpDate?: string;
 }
 
